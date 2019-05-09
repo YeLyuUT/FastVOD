@@ -17,6 +17,7 @@ import subprocess
 import pdb
 import pickle
 import random
+from PIL import Image
 try:
     xrange          # Python 2
 except NameError:
@@ -24,7 +25,7 @@ except NameError:
 
 class imagenetDETVID(imdb):
     def __init__(self, image_set, devkit_path, data_path):
-        imdb.__init__(self, image_set)
+        imdb.__init__(self, 'imagenetDETVID_'+image_set)
         self._image_set = image_set
         self._devkit_path = devkit_path
         self._data_path = data_path
@@ -117,6 +118,7 @@ class imagenetDETVID(imdb):
                 # we need the prefix for the path.
                 #prefix = 'data/imagenet/ILSVRC/Data/VID'
                 for line in data:
+                    line = line.strip()
                     if line != '':
                         image_index.append(line)
                 f.close()
@@ -164,9 +166,9 @@ class imagenetDETVID(imdb):
             image_index = []
             for i in range(1, 201):
                 if self._valid_image_flag[i] == 1:
-                    image_set_file = os.path.join(self._data_path, 'ImageSets', 'DET', 'train_' + str(i) + '.txt')
-                    print(image_set_file)
-                    with open(image_set_file) as f:
+                    det_set_file = os.path.join(self._data_path, 'ImageSets', 'DET', 'train_' + str(i) + '.txt')
+                    print(det_set_file)
+                    with open(det_set_file) as f:
                         tmp_index = [x.strip() for x in f.readlines()]
                         vtmp_index = []
                         for line in tmp_index:
@@ -264,6 +266,8 @@ class imagenetDETVID(imdb):
         overlaps = np.zeros((num_objs, self.num_classes), dtype=np.float32)
 
         # Load object bounding boxes into a data frame.
+        # check x,y in correct range.
+        width, height = Image.open(index+'.JPEG').size
         for ix, obj in enumerate(objs):
             x1 = float(get_data_from_tag(obj, 'xmin'))
             y1 = float(get_data_from_tag(obj, 'ymin'))
@@ -271,6 +275,10 @@ class imagenetDETVID(imdb):
             y2 = float(get_data_from_tag(obj, 'ymax'))
             cls = self._wnid_to_ind[
                     str(get_data_from_tag(obj, "name")).lower().strip()]
+            x1 = min(max(0, x1), width - 1)
+            x2 = min(max(0, x2), width - 1)
+            y1 = min(max(0, y1), height - 1)
+            y2 = min(max(0, y2), height - 1)
             boxes[ix, :] = [x1, y1, x2, y2]
             gt_classes[ix] = cls
             overlaps[ix, cls] = 1.0

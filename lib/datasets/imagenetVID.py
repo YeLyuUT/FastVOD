@@ -24,7 +24,7 @@ except NameError:
 
 class imagenetVID(imdb):
     def __init__(self, image_set, devkit_path, data_path):
-        imdb.__init__(self, image_set)
+        imdb.__init__(self, 'imagenetVID_'+ image_set)
         self._image_set = image_set
         self._devkit_path = devkit_path
         self._data_path = data_path

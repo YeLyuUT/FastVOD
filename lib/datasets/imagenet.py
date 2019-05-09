@@ -25,7 +25,7 @@ except NameError:
 
 class imagenet(imdb):
     def __init__(self, image_set, devkit_path, data_path):
-        imdb.__init__(self, image_set)
+        imdb.__init__(self, 'imagenetDET_'+image_set)
         self._image_set = image_set
         self._devkit_path = devkit_path
         self._data_path = data_path
@@ -116,9 +116,9 @@ class imagenet(imdb):
 
             for i in range(1,201):
                 if self._valid_image_flag[i] == 1:
-                    print(i)
-                    image_set_file = os.path.join(self._data_path, 'ImageSets', 'DET', 'train_' + str(i) + '.txt')
-                    with open(image_set_file) as f:
+                    det_set_file = os.path.join(self._data_path, 'ImageSets', 'DET', 'train_' + str(i) + '.txt')
+                    print(det_set_file)
+                    with open(det_set_file) as f:
                         tmp_index = [x.strip() for x in f.readlines()]
                         vtmp_index = []
                         for line in tmp_index:
