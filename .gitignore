@@ -206,3 +206,9 @@ lib/pycocotools/_mask.c
 *.avi
 *.mov
 *.mp4
+
+# ignore data in output directory
+output/
+
+# ignore pytorch saved model parameters .pth
+*pth
