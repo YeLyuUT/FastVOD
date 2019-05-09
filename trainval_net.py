@@ -168,6 +168,14 @@ if __name__ == '__main__':
       args.imdb_name = "imagenet_train"
       args.imdbval_name = "imagenet_val"
       args.set_cfgs = ['ANCHOR_SCALES', '[4, 8, 16, 32]', 'ANCHOR_RATIOS', '[0.5,1,2]', 'MAX_NUM_GT_BOXES', '30']
+  elif args.dataset == "imagenetVID":
+      args.imdb_name = 'imagenetVID_train'
+      args.imdbval_name = 'imagenetVID_val'
+      args.set_cfgs = ['ANCHOR_SCALES', '[4, 8, 16, 32]', 'ANCHOR_RATIOS', '[0.5,1,2]', 'MAX_NUM_GT_BOXES', '30']
+  elif args.dataset == 'imagenetDETVID':
+      args.imdb_name = 'imagenetDETVID_train'
+      args.imdbval_name = 'imagenetDETVID_val'
+      args.set_cfgs = ['ANCHOR_SCALES', '[4, 8, 16, 32]', 'ANCHOR_RATIOS', '[0.5,1,2]', 'MAX_NUM_GT_BOXES', '30']
   elif args.dataset == "vg":
       # train sizes: train, smalltrain, minitrain
       # train scale: ['150-50-20', '150-50-50', '500-150-80', '750-250-150', '1750-700-450', '1600-400-20']
@@ -312,6 +320,8 @@ if __name__ == '__main__':
       im_info.data.resize_(data[1].size()).copy_(data[1])
       gt_boxes.data.resize_(data[2].size()).copy_(data[2])
       num_boxes.data.resize_(data[3].size()).copy_(data[3])
+
+      #print(im_data.shape)
 
       fasterRCNN.zero_grad()
       rois, cls_prob, bbox_pred, \

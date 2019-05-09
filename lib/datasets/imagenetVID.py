@@ -1,9 +1,8 @@
 from __future__ import print_function
 # --------------------------------------------------------
-# Fast R-CNN
-# Copyright (c) 2015 Microsoft
+# Copyright (c) 2019 University of Twente.
 # Licensed under The MIT License [see LICENSE for details]
-# Written by Ross Girshick
+# Written by Ye Lyu.
 # --------------------------------------------------------
 
 import datasets
@@ -17,46 +16,29 @@ import scipy.io as sio
 import subprocess
 import pdb
 import pickle
+import random
 try:
     xrange          # Python 2
 except NameError:
     xrange = range  # Python 3
 
-
-class imagenet(imdb):
+class imagenetVID(imdb):
     def __init__(self, image_set, devkit_path, data_path):
         imdb.__init__(self, image_set)
         self._image_set = image_set
         self._devkit_path = devkit_path
         self._data_path = data_path
-        synsets_image = sio.loadmat(os.path.join(self._devkit_path, 'data', 'meta_det.mat'))
         synsets_video = sio.loadmat(os.path.join(self._devkit_path, 'data', 'meta_vid.mat'))
-        self._classes_image = ('__background__',)
-        self._wnid_image = (0,)
 
         self._classes = ('__background__',)
         self._wnid = (0,)
-
-        for i in xrange(200):
-            self._classes_image = self._classes_image + (synsets_image['synsets'][0][i][2][0],)
-            self._wnid_image = self._wnid_image + (synsets_image['synsets'][0][i][1][0],)
 
         for i in xrange(30):
             self._classes = self._classes + (synsets_video['synsets'][0][i][2][0],)
             self._wnid = self._wnid + (synsets_video['synsets'][0][i][1][0],)
 
-        self._wnid_to_ind_image = dict(zip(self._wnid_image, xrange(201)))
-        self._class_to_ind_image = dict(zip(self._classes_image, xrange(201)))
-
         self._wnid_to_ind = dict(zip(self._wnid, xrange(31)))
         self._class_to_ind = dict(zip(self._classes, xrange(31)))
-
-        #check for valid intersection between video and image classes
-        self._valid_image_flag = [0]*201
-
-        for i in range(1,201):
-            if self._wnid_image[i] in self._wnid_to_ind:
-                self._valid_image_flag[i] = 1
 
         self._image_ext = ['.JPEG']
 
@@ -102,70 +84,75 @@ class imagenet(imdb):
         # Example path to image set file:
         # self._data_path + /ImageSets/val.txt
 
+        # For VID dataset, we hard code the data number to sample.
+        vid_num_per_cat = 100 # we use 100 videos for each category.
+        num_img_per_vid = 15 # we use 15 images for each video.
+
         if self._image_set == 'train':
-            image_set_file = os.path.join(self._data_path, 'ImageSets', 'trainr.txt')
+            image_set_file = os.path.join(self._data_path, 'ImageSets', 'trainr_VID_15frames_100vids_per_cat.txt')
             image_index = []
             if os.path.exists(image_set_file):
                 f = open(image_set_file, 'r')
-                data = f.read().split()
-                for lines in data:
-                    if lines != '':
-                        image_index.append(lines)
+                data = f.readlines()
+                # we need the prefix for the path.
+                #prefix = 'data/imagenet/ILSVRC/Data/VID'
+                for line in data:
+                    if line != '':
+                        image_index.append(line)
                 f.close()
                 return image_index
 
-            for i in range(1,201):
-                if self._valid_image_flag[i] == 1:
-                    print(i)
-                    image_set_file = os.path.join(self._data_path, 'ImageSets', 'DET', 'train_' + str(i) + '.txt')
-                    with open(image_set_file) as f:
-                        tmp_index = [x.strip() for x in f.readlines()]
-                        vtmp_index = []
-                        for line in tmp_index:
-                            line = line.split(' ')
-                            #image_list = os.popen('ls ' + self._data_path + '/Data/DET/train/' + line[0] + '/*.JPEG').read().split()
-                            #image_list = os.popen('ls ' + self._data_path + '/Data/DET/train/' + line[0] + '.JPEG').read().split()
-                            #tmp_list = []
-                            #for imgs in image_list:
-                             #   tmp_list.append(imgs[:-5])
-                            #vtmp_index = vtmp_index + tmp_list
+            # We use vid_indexes to contain all video folders for each category.
+            vid_indexes = []
+            for i in range(1,31):
+                vid_set_file = os.path.join(self._data_path, 'ImageSets', 'VID', 'train_' + str(i) + '.txt')
+                with open(vid_set_file) as f:
+                    tmp_index = [x.strip() for x in f.readlines()]
+                    vtmp_index = []
+                    for line in tmp_index:
+                        line = line.split(' ')
+                        # The list file given by ImageNet has some problem, we need to handle it by checking line item.
+                        if line[1]=='1':
+                            vtmp_index.append(os.path.dirname(line[0]))
+                        else:
+                            print(line)
+                            raise 'Please check your file list.'
 
-                            # we only use positive training samples.
-                            if line[1] =='1':
-                                vtmp_index.append(self._data_path + '/Data/DET/train/' + line[0])
+                    # Count file numbers for each video.
+                    vid_indexes.append(vtmp_index)
 
-                        num_lines = len(vtmp_index)
-                        ids = np.random.permutation(num_lines)
-                        count = 0
-                        while count < 2000:
-                            image_index.append(vtmp_index[ids[count % num_lines]])
-                            count = count + 1
-            '''
-            for i in range(1,201):
-                if self._valid_image_flag[i] == 1:
-                    image_set_file = os.path.join(self._data_path, 'ImageSets', 'train_pos_' + str(i) + '.txt')
-                    with open(image_set_file) as f:
-                        tmp_index = [x.strip() for x in f.readlines()]
-                    num_lines = len(tmp_index)
-                    ids = np.random.permutation(num_lines)
-                    count = 0
-                    while count < 2000:
-                        image_index.append(tmp_index[ids[count % num_lines]])
-                        count = count + 1
-            '''
-            image_set_file = os.path.join(self._data_path, 'ImageSets', 'trainr.txt')
+            image_indexes =[]
+            # First, we sample the videos for each category.
+            for vid_idx in vid_indexes:
+                vid_num = np.minimum(len(vid_idx), vid_num_per_cat)
+                vid_idx = random.sample(vid_idx, vid_num)
+                assert len(vid_idx)==vid_num and vid_num<=vid_num_per_cat
+                # Second, we get images for each category.
+                for vid_id in vid_idx:
+                    flist = os.listdir(vid_id)
+                    nfiles = len(flist)
+                    ngap = np.float64(nfiles / (num_img_per_vid+1))
+                    for iid in range(num_img_per_vid):
+                        img_idx = int(np.round((iid+1)*ngap))
+                        image_indexes.append(os.path.join(vid_id, '%06d'%(img_idx)))
+            # Third, we shuffle the images for training.
+            random.shuffle(image_indexes)
+            print('Total number of video images are:%d'%(len(image_indexes)))
+            num_lines = len(image_indexes)
+
             f = open(image_set_file, 'w')
-            for lines in image_index:
-                f.write(lines + '\n')
+            for line in image_indexes:
+                f.write(line + '\n')
             f.close()
+            return image_indexes
         else:
-            image_set_file = os.path.join(self._data_path, 'ImageSets','DET', 'val.txt')
-            image_index = []
+            image_set_file = os.path.join(self._data_path, 'ImageSets','VID', 'val.txt')
+            vid_index = []
             with open(image_set_file) as f:
                 for x in f.readlines():
                     line = x.strip().split(' ')
-                    image_index.append(self._data_path + '/Data/DET/val/' + line[0])
-        return image_index
+                    vid_index.append(self._data_path + '/Data/VID/val/' + line[0])
+            return vid_index
 
     def gt_roidb(self):
         """

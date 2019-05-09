@@ -1,8 +1,8 @@
 # --------------------------------------------------------
 # Fast R-CNN
-# Copyright (c) 2015 Microsoft
 # Licensed under The MIT License [see LICENSE for details]
 # Written by Ross Girshick and Xinlei Chen
+# Modified by Ye Lyu to support imagenet dataset.
 # --------------------------------------------------------
 from __future__ import absolute_import
 from __future__ import division
@@ -114,13 +114,20 @@ class imdb(object):
   def append_flipped_images(self):
     num_images = self.num_images
     widths = self._get_widths()
+    #print('%d images to be flipped.'%(num_images))
     for i in range(num_images):
       boxes = self.roidb[i]['boxes'].copy()
       oldx1 = boxes[:, 0].copy()
       oldx2 = boxes[:, 2].copy()
+      #boxes[:, 0] = np.clip(widths[i] - oldx2 - 1,0,widths[i]-1)
+      #boxes[:, 2] = np.clip(widths[i] - oldx1 - 1,0,widths[i]-1)
+
+      # For some annotations, the x coordinates exceeds the width. If so, use 0 for flipped coordinates.
       boxes[:, 0] = widths[i] - oldx2 - 1
+      boxes[np.where(widths[i] - 1 < oldx2)[0], 0] = 0
       boxes[:, 2] = widths[i] - oldx1 - 1
-      assert (boxes[:, 2] >= boxes[:, 0]).all()
+      boxes[np.where(widths[i] - 1 < oldx1)[0], 2] = 0
+      assert (boxes[:, 2] >= boxes[:, 0]).all(), (boxes[np.where(boxes[:, 2] < boxes[:, 0])[0],:],widths[i],oldx1[np.where(boxes[:, 2] < boxes[:, 0])[0]])
       entry = {'boxes': boxes,
                'gt_overlaps': self.roidb[i]['gt_overlaps'],
                'gt_classes': self.roidb[i]['gt_classes'],
