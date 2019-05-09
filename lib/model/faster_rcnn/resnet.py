@@ -66,9 +66,9 @@ class BasicBlock(nn.Module):
 class Bottleneck(nn.Module):
   expansion = 4
 
-  def __init__(self, inplanes, planes, stride=1, downsample=None):
+  def __init__(self, inplanes, planes, stride=1, downsample=None, dilation=1):
     super(Bottleneck, self).__init__()
-    self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, stride=stride, bias=False) # change
+    self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, stride=stride, bias=False, dilation=dilation)
     self.bn1 = nn.BatchNorm2d(planes)
     self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=1, # change
                  padding=1, bias=False)
@@ -114,9 +114,9 @@ class ResNet(nn.Module):
     self.layer1 = self._make_layer(block, 64, layers[0])
     self.layer2 = self._make_layer(block, 128, layers[1], stride=2)
     self.layer3 = self._make_layer(block, 256, layers[2], stride=2)
-    self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
-    # it is slightly better whereas slower to set stride = 1
-    # self.layer4 = self._make_layer(block, 512, layers[3], stride=1)
+    #self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
+    # here we use dilation 2 stride 1, instead of stride 2.
+    self.layer4 = self._make_layer(block, 512, layers[3], stride=1, dilation=2)
     self.avgpool = nn.AvgPool2d(7)
     self.fc = nn.Linear(512 * block.expansion, num_classes)
 
@@ -128,7 +128,7 @@ class ResNet(nn.Module):
         m.weight.data.fill_(1)
         m.bias.data.zero_()
 
-  def _make_layer(self, block, planes, blocks, stride=1):
+  def _make_layer(self, block, planes, blocks, stride=1, dilation=1):
     downsample = None
     if stride != 1 or self.inplanes != planes * block.expansion:
       downsample = nn.Sequential(
@@ -138,7 +138,7 @@ class ResNet(nn.Module):
       )
 
     layers = []
-    layers.append(block(self.inplanes, planes, stride, downsample))
+    layers.append(block(self.inplanes, planes, stride, downsample, dilation))
     self.inplanes = planes * block.expansion
     for i in range(1, blocks):
       layers.append(block(self.inplanes, planes))
