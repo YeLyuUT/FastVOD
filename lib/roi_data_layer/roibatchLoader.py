@@ -65,6 +65,9 @@ class roibatchLoader(data.Dataset):
     # sample in this group
     minibatch_db = [self._roidb[index_ratio]]
     blobs = get_minibatch(minibatch_db, self._num_classes)
+    #print('self._num_classes', self._num_classes)
+    #print(type(blobs['data']))
+    #print(type(blobs['im_info']))
     data = torch.from_numpy(blobs['data'])
     im_info = torch.from_numpy(blobs['im_info'])
     # we need to random shuffle the bounding box.
