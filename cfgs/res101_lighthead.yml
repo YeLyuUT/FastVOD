@@ -14,6 +14,11 @@ TRAIN:
 TEST:
   HAS_RPN: True
 POOLING_SIZE: 7
-POOLING_MODE: align
-#POOLING_MODE: pspool
+#POOLING_MODE: align
+POOLING_MODE: pspool
 CROP_RESIZE_WITH_MAX_POOL: False
+
+RESNET:
+  CORE_CHOICE:
+    #USE: 'faster_rcnn'
+    USE: 'rfcn_lighthead'
