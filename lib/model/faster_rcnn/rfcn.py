@@ -62,12 +62,12 @@ class _rfcn_lighthead(nn.Module):
         # define rpn
         self.RCNN_rpn = _RPN(self.dout_base_model)
         self.RCNN_proposal_target = _ProposalTargetLayer(self.n_classes)
-        #self.RCNN_roi_pool = _RoIPooling(cfg.POOLING_SIZE, cfg.POOLING_SIZE, 1.0/16.0)
-        #self.RCNN_roi_align = RoIAlignAvg(cfg.POOLING_SIZE, cfg.POOLING_SIZE, 1.0/16.0)
+        self.RCNN_roi_align = RoIAlignAvg(cfg.POOLING_SIZE, cfg.POOLING_SIZE, 1.0/16.0)
         self.RCNN_psroi_pool = PSRoIPool(cfg.POOLING_SIZE, cfg.POOLING_SIZE, 1.0/16.0, cfg.POOLING_SIZE, mid_c)
 
         self.grid_size = cfg.POOLING_SIZE * 2 if cfg.CROP_RESIZE_WITH_MAX_POOL else cfg.POOLING_SIZE
         self.RCNN_roi_crop = _RoICrop()
+
 
         # The input channel is set mannually since we use resnet101 only.
         # c_out is set to 10*ps*ps. c_mid is set to 256.
@@ -76,8 +76,8 @@ class _rfcn_lighthead(nn.Module):
 
         # fc layer for roi-wise prediction.
         # roi_mid_c in the original paper is 2048. Since we have fewer classes, it is reduced to 1024.
-        roi_mid_c = 1024
-        self.fc_roi = nn.Linear(core_depth, roi_mid_c)
+        roi_mid_c = 2048
+        self.fc_roi = nn.Linear(core_depth*cfg.POOLING_SIZE*cfg.POOLING_SIZE, roi_mid_c)
 
 
     def forward(self, im_data, im_info, gt_boxes, num_boxes):
@@ -90,6 +90,7 @@ class _rfcn_lighthead(nn.Module):
         # feed image data to base model to obtain base feature map
         base_feat = self.RCNN_base(im_data)
 
+        print('base_feat.size():', base_feat.size())
         # feed base feature map tp RPN to obtain rois
         rois, rpn_loss_cls, rpn_loss_bbox = self.RCNN_rpn(base_feat, im_info, gt_boxes, num_boxes)
 
@@ -135,6 +136,8 @@ class _rfcn_lighthead(nn.Module):
 
         if cfg.POOLING_MODE == 'pspool':
             pooled_feat = self.RCNN_psroi_pool(base_feat, rois.view(-1, 5))
+        elif cfg.POOLING_MODE == 'align':
+            pooled_feat = self.RCNN_psroi_pool(base_feat, rois.view(-1,5))
         else:
             raise 'Other pooling methods are not supported.'
 

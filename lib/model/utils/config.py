@@ -13,6 +13,7 @@ __C = edict()
 #   from fast_rcnn_config import cfg
 cfg = __C
 
+
 #
 # Training options
 #
@@ -221,6 +222,14 @@ __C.RESNET.MAX_POOL = False
 # Range: 0 (none) to 3 (all)
 __C.RESNET.FIXED_BLOCKS = 1
 
+# Core defines whether to use faster-rcnn or rfcn.
+# This ugly design is resulted by the ugly inherent structure in the original faster-rcnn code.
+# RESNET.CORE_CHOICE has to be either 'rfcn_lighthead' or 'faster_rcnn'
+__C.RESNET.CORE_CHOICE = edict()
+__C.RESNET.CORE_CHOICE.RFCN_LIGHTHEAD = 'rfcn_lighthead'
+__C.RESNET.CORE_CHOICE.FASTER_RCNN = 'faster_rcnn'
+# Set the used value here.
+__C.RESNET.CORE_CHOICE.USE = __C.RESNET.CORE_CHOICE.FASTER_RCNN
 #
 # MobileNet options
 #

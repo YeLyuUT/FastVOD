@@ -4,6 +4,7 @@ from __future__ import print_function
 
 from model.utils.config import cfg
 from model.faster_rcnn.faster_rcnn import _fasterRCNN
+from model.faster_rcnn.rfcn import _rfcn_lighthead
 
 import torch
 import torch.nn as nn
@@ -287,3 +288,4 @@ class resnet(_fasterRCNN):
   def _head_to_tail(self, pool5):
     fc7 = self.RCNN_top(pool5).mean(3).mean(2)
     return fc7
+

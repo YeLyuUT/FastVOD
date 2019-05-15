@@ -10,7 +10,7 @@ class PSRoIPoolingFunction(Function):
         self.spatial_scale = float(spatial_scale)
         self.group_size = int(group_size)
         self.output_dim = int(output_dim)
-        self.output = None
+        #self.output = None
         self.mappingchannel = None
         self.rois = None
         self.feature_size = None
@@ -24,7 +24,7 @@ class PSRoIPoolingFunction(Function):
         mappingchannel = mappingchannel.cuda()
         psroi_pooling.psroi_pooling_forward_cuda(self.pooled_height, self.pooled_width, self.spatial_scale, self.group_size, self.output_dim, \
 features, rois, output, mappingchannel);
-        self.output = output
+        #self.output = output
         self.mappingchannel = mappingchannel
         self.rois = rois
         self.feature_size = features.size()

@@ -11,10 +11,42 @@ from model.rpn.rpn import _RPN
 from model.roi_pooling.modules.roi_pool import _RoIPooling
 from model.roi_crop.modules.roi_crop import _RoICrop
 from model.roi_align.modules.roi_align import RoIAlignAvg
+from model.psroi_pooling.modules.psroi_pool import PSRoIPool
 from model.rpn.proposal_target_layer_cascade import _ProposalTargetLayer
+import math
 import time
 import pdb
 from model.utils.net_utils import _smooth_l1_loss, _crop_pool_layer, _affine_grid_gen, _affine_theta
+
+class _global_context_layer(nn.Module):
+    def __init__(self, c_in, c_out, c_mid=256, ks=15):
+        # the c_out should be set as multiple of pooled_size*pooled_size .
+        super(_global_context_layer, self).__init__()
+
+        self.c_out = c_out
+        self.c_mid = c_mid
+        self.ks = ks
+        # define convolution ops.
+        self.row_prev = nn.Conv2d(c_in, c_mid , kernel_size=(ks,1),padding=((ks-1)//2,0))
+        self.row_post = nn.Conv2d(c_mid,c_out , kernel_size=(1,ks),padding=(0,(ks-1)//2))
+        self.col_prev = nn.Conv2d(c_in, c_mid , kernel_size=(1,ks),padding=(0,(ks-1)//2))
+        self.col_post = nn.Conv2d(c_mid,c_out , kernel_size=(ks,1),padding=((ks-1)//2,0))
+        self._init_weights()
+
+    def forward(self, feature):
+        f_row = self.row_prev(feature)
+        f_col = self.col_prev(feature)
+        f_row = self.row_post(f_row)
+        f_col = self.col_post(f_col)
+        out = f_row+f_col
+        #assert feature.size()[2:]==out.size()[2:], 'Check your global context layer.{}!={}'.format(feature.size()[2:],out.size()[2:])
+        return out
+
+    def _init_weights(self):
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
+                m.weight.data.normal_(0, math.sqrt(2. / n))
 
 class _fasterRCNN(nn.Module):
     """ faster RCNN """
@@ -35,6 +67,21 @@ class _fasterRCNN(nn.Module):
 
         self.grid_size = cfg.POOLING_SIZE * 2 if cfg.CROP_RESIZE_WITH_MAX_POOL else cfg.POOLING_SIZE
         self.RCNN_roi_crop = _RoICrop()
+
+        if cfg.RESNET.CORE_CHOICE.USE == cfg.RESNET.CORE_CHOICE.FASTER_RCNN:
+            print('RCNN uses Faster RCNN core.')
+        elif cfg.RESNET.CORE_CHOICE.USE == cfg.RESNET.CORE_CHOICE.RFCN_LIGHTHEAD:
+            print('RCNN uses RFCN Light Head core.')
+            # The input channel is set mannually since we use resnet101 only.
+            # c_out is set to 10*ps*ps. c_mid is set to 256.
+            self.relu = nn.ReLU()
+            core_depth = 10
+            self.g_ctx = _global_context_layer(2048, core_depth * cfg.POOLING_SIZE * cfg.POOLING_SIZE, 256, 15)
+            self.RCNN_psroi_pool = PSRoIPool(cfg.POOLING_SIZE, cfg.POOLING_SIZE, 1.0 / 16.0, cfg.POOLING_SIZE, core_depth)
+            # fc layer for roi-wise prediction.
+            # roi_mid_c in the original paper is 2048.
+            roi_mid_c = 2048
+            self.fc_roi = nn.Linear(core_depth * cfg.POOLING_SIZE * cfg.POOLING_SIZE, roi_mid_c)
 
     def forward(self, im_data, im_info, gt_boxes, num_boxes):
         batch_size = im_data.size(0)
@@ -69,6 +116,13 @@ class _fasterRCNN(nn.Module):
         rois = Variable(rois)
         # do roi pooling based on predicted rois
 
+        if cfg.RESNET.CORE_CHOICE.USE == cfg.RESNET.CORE_CHOICE.RFCN_LIGHTHEAD:
+            # we need layer 4 before pooling op.
+            base_feat = self.RCNN_top(base_feat)
+            # ctx op layer here.
+            base_feat = self.g_ctx(base_feat)
+            base_feat = self.relu(base_feat)
+
         if cfg.POOLING_MODE == 'crop':
             # pdb.set_trace()
             # pooled_feat_anchor = _crop_pool_layer(base_feat, rois.view(-1, 5))
@@ -81,10 +135,17 @@ class _fasterRCNN(nn.Module):
             pooled_feat = self.RCNN_roi_align(base_feat, rois.view(-1, 5))
         elif cfg.POOLING_MODE == 'pool':
             pooled_feat = self.RCNN_roi_pool(base_feat, rois.view(-1, 5))
+        elif cfg.POOLING_MODE =='pspool':
+            pooled_feat = self.RCNN_psroi_pool(base_feat, rois.view(-1,5))
 
         # feed pooled features to top model
-        pooled_feat = self._head_to_tail(pooled_feat)
-
+        if cfg.RESNET.CORE_CHOICE.USE == cfg.RESNET.CORE_CHOICE.FASTER_RCNN:
+            pooled_feat = self._head_to_tail(pooled_feat)
+        elif cfg.RESNET.CORE_CHOICE.USE == cfg.RESNET.CORE_CHOICE.RFCN_LIGHTHEAD:
+            pooled_feat = pooled_feat.view(pooled_feat.size(0), -1)
+            pooled_feat = self.fc_roi(pooled_feat)
+        else:
+            raise ValueError('Unknown RCNN type.')
         # compute bbox offset
         bbox_pred = self.RCNN_bbox_pred(pooled_feat)
         if self.training and not self.class_agnostic:
