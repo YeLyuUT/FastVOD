@@ -116,6 +116,10 @@ def parse_args():
                       help='whether use tensorboard',
                       action='store_true')
 
+  parser.add_argument('--cfg',dest = 'cfg_file',
+                      help='hyper parameters to load',
+                      default=None, type=str)
+
   args = parser.parse_args()
   return args
 
@@ -183,7 +187,8 @@ if __name__ == '__main__':
       args.imdbval_name = "vg_150-50-50_minival"
       args.set_cfgs = ['ANCHOR_SCALES', '[4, 8, 16, 32]', 'ANCHOR_RATIOS', '[0.5,1,2]', 'MAX_NUM_GT_BOXES', '50']
 
-  args.cfg_file = "cfgs/{}_ls.yml".format(args.net) if args.large_scale else "cfgs/{}.yml".format(args.net)
+  if args.cfg_file is None:
+    args.cfg_file = "cfgs/{}_ls.yml".format(args.net) if args.large_scale else "cfgs/{}.yml".format(args.net)
 
   if args.cfg_file is not None:
     cfg_from_file(args.cfg_file)
@@ -242,19 +247,21 @@ if __name__ == '__main__':
     cfg.CUDA = True
 
   # initilize the network here.
+
   if args.net == 'vgg16':
-    fasterRCNN = vgg16(imdb.classes, pretrained=True, class_agnostic=args.class_agnostic)
+    RCNN = vgg16(imdb.classes, pretrained=True, class_agnostic=args.class_agnostic)
   elif args.net == 'res101':
-    fasterRCNN = resnet(imdb.classes, 101, pretrained=True, class_agnostic=args.class_agnostic)
+    RCNN = resnet(imdb.classes, 101, pretrained=True, class_agnostic=args.class_agnostic)
   elif args.net == 'res50':
-    fasterRCNN = resnet(imdb.classes, 50, pretrained=True, class_agnostic=args.class_agnostic)
+    RCNN = resnet(imdb.classes, 50, pretrained=True, class_agnostic=args.class_agnostic)
   elif args.net == 'res152':
-    fasterRCNN = resnet(imdb.classes, 152, pretrained=True, class_agnostic=args.class_agnostic)
+    RCNN = resnet(imdb.classes, 152, pretrained=True, class_agnostic=args.class_agnostic)
   else:
     print("network is not defined")
     pdb.set_trace()
 
-  fasterRCNN.create_architecture()
+
+  RCNN.create_architecture()
 
   lr = cfg.TRAIN.LEARNING_RATE
   lr = args.lr
@@ -262,7 +269,7 @@ if __name__ == '__main__':
   #tr_momentum = args.momentum
 
   params = []
-  for key, value in dict(fasterRCNN.named_parameters()).items():
+  for key, value in dict(RCNN.named_parameters()).items():
     if value.requires_grad:
       if 'bias' in key:
         params += [{'params':[value],'lr':lr*(cfg.TRAIN.DOUBLE_BIAS + 1), \
@@ -278,7 +285,7 @@ if __name__ == '__main__':
     optimizer = torch.optim.SGD(params, momentum=cfg.TRAIN.MOMENTUM)
 
   if args.cuda:
-    fasterRCNN.cuda()
+    RCNN.cuda()
 
   if args.resume:
     load_name = os.path.join(output_dir,
@@ -287,7 +294,7 @@ if __name__ == '__main__':
     checkpoint = torch.load(load_name)
     args.session = checkpoint['session']
     args.start_epoch = checkpoint['epoch']
-    fasterRCNN.load_state_dict(checkpoint['model'])
+    RCNN.load_state_dict(checkpoint['model'])
     optimizer.load_state_dict(checkpoint['optimizer'])
     lr = optimizer.param_groups[0]['lr']
     if 'pooling_mode' in checkpoint.keys():
@@ -295,7 +302,7 @@ if __name__ == '__main__':
     print("loaded checkpoint %s" % (load_name))
 
   if args.mGPUs:
-    fasterRCNN = nn.DataParallel(fasterRCNN)
+    RCNN = nn.DataParallel(RCNN)
 
   iters_per_epoch = int(train_size / args.batch_size)
 
@@ -305,7 +312,7 @@ if __name__ == '__main__':
 
   for epoch in range(args.start_epoch, args.max_epochs + 1):
     # setting to train mode
-    fasterRCNN.train()
+    RCNN.train()
     loss_temp = 0
     start = time.time()
 
@@ -323,11 +330,11 @@ if __name__ == '__main__':
 
       #print(im_data.shape)
 
-      fasterRCNN.zero_grad()
+      RCNN.zero_grad()
       rois, cls_prob, bbox_pred, \
       rpn_loss_cls, rpn_loss_box, \
       RCNN_loss_cls, RCNN_loss_bbox, \
-      rois_label = fasterRCNN(im_data, im_info, gt_boxes, num_boxes)
+      rois_label = RCNN(im_data, im_info, gt_boxes, num_boxes)
 
       loss = rpn_loss_cls.mean() + rpn_loss_box.mean() \
            + RCNN_loss_cls.mean() + RCNN_loss_bbox.mean()
@@ -337,7 +344,7 @@ if __name__ == '__main__':
       optimizer.zero_grad()
       loss.backward()
       if args.net == "vgg16":
-          clip_gradient(fasterRCNN, 10.)
+          clip_gradient(RCNN, 10.)
       optimizer.step()
 
       if step % args.disp_interval == 0:
@@ -378,12 +385,19 @@ if __name__ == '__main__':
         loss_temp = 0
         start = time.time()
 
-    
-    save_name = os.path.join(output_dir, 'faster_rcnn_{}_{}_{}.pth'.format(args.session, epoch, step))
+    # prefix for the saved name.
+    name_prefix = ''
+    if cfg.RESNET.CORE_CHOICE.USE == cfg.RESNET.CORE_CHOICE.FASTER_RCNN:
+        name_prefix = 'faster_rcnn'
+    elif cfg.RESNET.CORE_CHOICE.USE == cfg.RESNET.CORE_CHOICE.RFCN_LIGHTHEAD:
+        name_prefix = 'rfcn_light_head'
+    else:
+        pass
+    save_name = os.path.join(output_dir, name_prefix + '_{}_{}_{}.pth'.format(args.session, epoch, step))
     save_checkpoint({
       'session': args.session,
       'epoch': epoch + 1,
-      'model': fasterRCNN.module.state_dict() if args.mGPUs else fasterRCNN.state_dict(),
+      'model': RCNN.module.state_dict() if args.mGPUs else RCNN.state_dict(),
       'optimizer': optimizer.state_dict(),
       'pooling_mode': cfg.POOLING_MODE,
       'class_agnostic': args.class_agnostic,
