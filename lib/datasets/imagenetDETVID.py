@@ -201,14 +201,18 @@ class imagenetDETVID(imdb):
             f.close()
             return image_indexes
         else:
+            image_indexes = []
             # We only evaluate for video dataset.
             vid_set_file = os.path.join(self._data_path, 'ImageSets','VID', 'val.txt')
+            assert os.path.exists(vid_set_file), vid_set_file+' does not exist.'
             vid_index = []
-            with open(vid_set_file) as f:
+            with open(vid_set_file,'r') as f:
                 for x in f.readlines():
                     line = x.strip().split(' ')
-                    vid_index.append(self._data_path + '/Data/VID/val/' + line[0])
-            return vid_index
+                    image_indexes.append(self._data_path + '/Data/VID/val/' + line[0])
+
+            print('Total number of video images are:%d' % (len(image_indexes)))
+            return image_indexes
 
     def gt_roidb(self):
         """
