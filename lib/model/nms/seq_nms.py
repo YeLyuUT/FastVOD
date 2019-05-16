@@ -34,7 +34,6 @@ NMS_THRESH = 0.3
 IOU_THRESH = 0.5
 MAX_THRESH=1e-2
 
-@pysnooper.snoop()
 def createLinks(dets_all):
     links_all = []
 
@@ -77,7 +76,6 @@ def createLinks(dets_all):
         links_all.append(links_cls)
     return links_all
 
-@pysnooper.snoop()
 def maxPath(dets_all, links_all):
 
     for cls_ind, links_cls in enumerate(links_all):
