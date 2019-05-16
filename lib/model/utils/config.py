@@ -159,6 +159,12 @@ __C.TRAIN.USE_ALL_GT = True
 # Whether to tune the batch normalization parameters during training
 __C.TRAIN.BN_TRAIN = False
 
+# Online hard example mining. OHEM.
+__C.TRAIN.OHEM = False
+# OHEM batch size defines the number of selected samples of all original rois.
+# The number should be smaller than batch size(__C.TRAIN.BATCH_SIZE).
+__C.TRAIN.OHEM_BATCH_SIZE = 128
+
 #
 # Testing options
 #

@@ -94,17 +94,11 @@ class _fasterRCNN(nn.Module):
         base_feat = self.RCNN_base(im_data)
 
         # feed base feature map tp RPN to obtain rois
-        rois, rpn_loss_cls, rpn_loss_bbox = self.RCNN_rpn(base_feat, im_info, gt_boxes, num_boxes)
+        rois_rpn, rpn_loss_cls, rpn_loss_bbox = self.RCNN_rpn(base_feat, im_info, gt_boxes, num_boxes)
 
         # if it is training phrase, then use ground trubut bboxes for refining
         if self.training:
-            roi_data = self.RCNN_proposal_target(rois, gt_boxes, num_boxes)
-            rois, rois_label, rois_target, rois_inside_ws, rois_outside_ws = roi_data
-
-            rois_label = Variable(rois_label.view(-1).long())
-            rois_target = Variable(rois_target.view(-1, rois_target.size(2)))
-            rois_inside_ws = Variable(rois_inside_ws.view(-1, rois_inside_ws.size(2)))
-            rois_outside_ws = Variable(rois_outside_ws.view(-1, rois_outside_ws.size(2)))
+            rois, rois_label, rois_target, rois_inside_ws, rois_outside_ws = self.prepare_rois_for_training(rois_rpn, gt_boxes, num_boxes)
         else:
             rois_label = None
             rois_target = None
@@ -138,45 +132,71 @@ class _fasterRCNN(nn.Module):
         elif cfg.POOLING_MODE =='pspool':
             pooled_feat = self.RCNN_psroi_pool(base_feat, rois.view(-1,5))
 
-        # feed pooled features to top model
-        if cfg.RESNET.CORE_CHOICE.USE == cfg.RESNET.CORE_CHOICE.FASTER_RCNN:
-            pooled_feat = self._head_to_tail(pooled_feat)
-        elif cfg.RESNET.CORE_CHOICE.USE == cfg.RESNET.CORE_CHOICE.RFCN_LIGHTHEAD:
-            pooled_feat = pooled_feat.view(pooled_feat.size(0), -1)
-            pooled_feat = self.fc_roi(pooled_feat)
-        else:
-            raise ValueError('Unknown RCNN type.')
-        # compute bbox offset
-        bbox_pred = self.RCNN_bbox_pred(pooled_feat)
-        if self.training and not self.class_agnostic:
-            # select the corresponding columns according to roi labels
-            bbox_pred_view = bbox_pred.view(bbox_pred.size(0), int(bbox_pred.size(1) / 4), 4)
-            bbox_pred_select = torch.gather(bbox_pred_view, 1, rois_label.view(rois_label.size(0), 1, 1).expand(rois_label.size(0), 1, 4))
-            bbox_pred = bbox_pred_select.squeeze(1)
-
-        # compute object classification probability
-        cls_score = self.RCNN_cls_score(pooled_feat)
-        cls_prob = F.softmax(cls_score, 1)
+        bbox_pred, cls_prob, cls_score = self.roi_wise_pred(pooled_feat, rois_label)
 
         RCNN_loss_cls = 0
         RCNN_loss_bbox = 0
 
         if self.training:
             # classification loss
-            RCNN_loss_cls = F.cross_entropy(cls_score, rois_label)
+            # handle OHEM here.
+            if cfg.TRAIN.OHEM is True:
+                RCNN_loss_cls_tmp = F.cross_entropy(cls_score, rois_label, reduce=False)
+                RCNN_loss_bbox_tmp = _smooth_l1_loss(bbox_pred, rois_target, rois_inside_ws, rois_outside_ws, reduce=False)
+                #assert RCNN_loss_cls_tmp.size()==RCNN_loss_bbox_tmp.size(), 'size not equal.{}!={}'.format(RCNN_loss_cls_tmp.size(),RCNN_loss_bbox_tmp.size())
+                RCNN_loss_tmp = RCNN_loss_cls_tmp + RCNN_loss_bbox_tmp
+                sorted_RCNN_loss_tmp, index = torch.sort(RCNN_loss_tmp, descending=True)
+                index.detach_()
+                # redo forward to train hard examples only.
+                # select first cfg.TRAIN.OHEM_BATCH_SIZE rois for training.
+                index = index[:cfg.TRAIN.OHEM_BATCH_SIZE*batch_size]
+                rois            = rois.view(-1,5).index_select(0, index)
+                rois_label      = rois_label.index_select(0, index)
+                rois_target     = rois_target.index_select(0, index)
+                rois_inside_ws  = rois_inside_ws.index_select(0, index)
+                rois_outside_ws = rois_outside_ws.index_select(0, index)
+                if cfg.POOLING_MODE == 'crop':
+                    # pdb.set_trace()
+                    # pooled_feat_anchor = _crop_pool_layer(base_feat, rois.view(-1, 5))
+                    grid_xy = _affine_grid_gen(rois.view(-1, 5), base_feat.size()[2:], self.grid_size)
+                    grid_yx = torch.stack([grid_xy.data[:, :, :, 1], grid_xy.data[:, :, :, 0]], 3).contiguous()
+                    pooled_feat = self.RCNN_roi_crop(base_feat, Variable(grid_yx).detach())
+                    if cfg.CROP_RESIZE_WITH_MAX_POOL:
+                        pooled_feat = F.max_pool2d(pooled_feat, 2, 2)
+                elif cfg.POOLING_MODE == 'align':
+                    pooled_feat = self.RCNN_roi_align(base_feat, rois.view(-1, 5))
+                elif cfg.POOLING_MODE == 'pool':
+                    pooled_feat = self.RCNN_roi_pool(base_feat, rois.view(-1, 5))
+                elif cfg.POOLING_MODE == 'pspool':
+                    pooled_feat = self.RCNN_psroi_pool(base_feat, rois.view(-1, 5))
 
-            # bounding box regression L1 loss
-            RCNN_loss_bbox = _smooth_l1_loss(bbox_pred, rois_target, rois_inside_ws, rois_outside_ws)
+                bbox_pred, cls_prob, cls_score = self.roi_wise_pred(pooled_feat, rois_label)
+
+                RCNN_loss_cls = F.cross_entropy(cls_score, rois_label, reduce = False)
+                # bounding box regression L1 loss
+                RCNN_loss_bbox = _smooth_l1_loss(bbox_pred, rois_target, rois_inside_ws, rois_outside_ws, reduce = False)
+                #print('1:', RCNN_loss_cls[:5])
+                #print('2:', RCNN_loss_bbox[:5])
+                #print('3:', sorted_RCNN_loss_tmp[:5])
+                RCNN_loss_cls = RCNN_loss_cls.mean()
+                RCNN_loss_bbox = RCNN_loss_bbox.mean()
+            else:
+                RCNN_loss_cls = F.cross_entropy(cls_score, rois_label)
+
+                # bounding box regression L1 loss
+                RCNN_loss_bbox = _smooth_l1_loss(bbox_pred, rois_target, rois_inside_ws, rois_outside_ws)
 
             rpn_loss_cls = torch.unsqueeze(rpn_loss_cls, 0)
             rpn_loss_bbox = torch.unsqueeze(rpn_loss_bbox, 0)
             RCNN_loss_cls = torch.unsqueeze(RCNN_loss_cls, 0)
             RCNN_loss_bbox = torch.unsqueeze(RCNN_loss_bbox, 0)
 
-
-        cls_prob = cls_prob.view(batch_size, rois.size(1), -1)
-        bbox_pred = bbox_pred.view(batch_size, rois.size(1), -1)
-
+        if self.training:
+          cls_prob = None
+          bbox_pred = None
+        else:
+          cls_prob = cls_prob.view(batch_size, rois.size(1), -1)
+          bbox_pred = bbox_pred.view(batch_size, rois.size(1), -1)
         return rois, cls_prob, bbox_pred, rpn_loss_cls, rpn_loss_bbox, RCNN_loss_cls, RCNN_loss_bbox, rois_label
 
     def _init_weights(self):
@@ -200,3 +220,36 @@ class _fasterRCNN(nn.Module):
     def create_architecture(self):
         self._init_modules()
         self._init_weights()
+
+    def roi_wise_pred(self,pooled_feat,rois_label=None):
+        # feed pooled features to top model
+        if cfg.RESNET.CORE_CHOICE.USE == cfg.RESNET.CORE_CHOICE.FASTER_RCNN:
+            roi_feat = self._head_to_tail(pooled_feat)
+        elif cfg.RESNET.CORE_CHOICE.USE == cfg.RESNET.CORE_CHOICE.RFCN_LIGHTHEAD:
+            roi_feat = pooled_feat.view(pooled_feat.size(0), -1)
+            roi_feat = self.fc_roi(roi_feat)
+        else:
+            raise ValueError('Unknown RCNN type.')
+        # compute bbox offset
+        bbox_pred = self.RCNN_bbox_pred(roi_feat)
+        if self.training and not self.class_agnostic:
+            # select the corresponding columns according to roi labels
+            bbox_pred_view = bbox_pred.view(bbox_pred.size(0), int(bbox_pred.size(1) / 4), 4)
+            bbox_pred_select = torch.gather(bbox_pred_view, 1,
+                                            rois_label.view(rois_label.size(0), 1, 1).expand(rois_label.size(0), 1, 4))
+            bbox_pred = bbox_pred_select.squeeze(1)
+
+        # compute object classification probability
+        cls_score = self.RCNN_cls_score(roi_feat)
+        cls_prob = F.softmax(cls_score, 1)
+        return bbox_pred, cls_prob, cls_score
+
+    def prepare_rois_for_training(self, rois, gt_boxes, num_boxes):
+        roi_data = self.RCNN_proposal_target(rois, gt_boxes, num_boxes)
+        rois, rois_label, rois_target, rois_inside_ws, rois_outside_ws = roi_data
+
+        rois_label = Variable(rois_label.view(-1).long())
+        rois_target = Variable(rois_target.view(-1, rois_target.size(2)))
+        rois_inside_ws = Variable(rois_inside_ws.view(-1, rois_inside_ws.size(2)))
+        rois_outside_ws = Variable(rois_outside_ws.view(-1, rois_outside_ws.size(2)))
+        return rois, rois_label, rois_target, rois_inside_ws, rois_outside_ws
