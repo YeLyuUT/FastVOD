@@ -69,7 +69,7 @@ def adjust_learning_rate(optimizer, decay=0.1):
 def save_checkpoint(state, filename):
     torch.save(state, filename)
 
-def _smooth_l1_loss(bbox_pred, bbox_targets, bbox_inside_weights, bbox_outside_weights, sigma=1.0, dim=[1]):
+def _smooth_l1_loss(bbox_pred, bbox_targets, bbox_inside_weights, bbox_outside_weights, sigma=1.0, dim=[1], reduce=True):
     
     sigma_2 = sigma ** 2
     box_diff = bbox_pred - bbox_targets
@@ -82,7 +82,8 @@ def _smooth_l1_loss(bbox_pred, bbox_targets, bbox_inside_weights, bbox_outside_w
     loss_box = out_loss_box
     for i in sorted(dim, reverse=True):
       loss_box = loss_box.sum(i)
-    loss_box = loss_box.mean()
+    if reduce is True:
+      loss_box = loss_box.mean()
     return loss_box
 
 def _crop_pool_layer(bottom, rois, max_pool=True):
