@@ -31,7 +31,10 @@ class _global_context_layer(nn.Module):
         self.row_post = nn.Conv2d(c_mid,c_out , kernel_size=(1,ks),padding=(0,(ks-1)//2))
         self.col_prev = nn.Conv2d(c_in, c_mid , kernel_size=(1,ks),padding=(0,(ks-1)//2))
         self.col_post = nn.Conv2d(c_mid,c_out , kernel_size=(ks,1),padding=((ks-1)//2,0))
+        # two post conv-layers are specialized as the addition is applied after the layer.
         self._init_weights()
+        self.row_post.weight.data = self.row_post.weight.data/2.0
+        self.col_post.weight.data = self.col_post.weight.data/2.0
 
     def forward(self, feature):
         f_row = self.row_prev(feature)
@@ -82,6 +85,10 @@ class _fasterRCNN(nn.Module):
             # roi_mid_c in the original paper is 2048.
             roi_mid_c = 2048
             self.fc_roi = nn.Linear(core_depth * cfg.POOLING_SIZE * cfg.POOLING_SIZE, roi_mid_c)
+        elif cfg.RESNET.CORE_CHOICE.USE == cfg.RESNET.CORE_CHOICE.RFCN:
+            print('RCNN uses R-FCN core.')
+            self.RCNN_psroi_score = PSRoIPool(cfg.POOLING_SIZE, cfg.POOLING_SIZE, 1.0 / 16.0, cfg.POOLING_SIZE, self.n_classes )
+            self.RCNN_psroi_box = PSRoIPool(cfg.POOLING_SIZE, cfg.POOLING_SIZE, 1.0 / 16.0, cfg.POOLING_SIZE, self.n_classes )
 
     def forward(self, im_data, im_info, gt_boxes, num_boxes):
         batch_size = im_data.size(0)
