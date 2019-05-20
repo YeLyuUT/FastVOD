@@ -124,8 +124,14 @@ class _fasterRCNN(nn.Module):
         if cfg.RESNET.CORE_CHOICE.USE == cfg.RESNET.CORE_CHOICE.RFCN_LIGHTHEAD:
             normal_init(self.fc_roi, 0, 0.01, cfg.TRAIN.TRUNCATED)
             # TODO test if we need to re-initialize Conv5 block, which is in self.RCNN_top.
-            for m in self.RCNN_top.modules():
-                pass
+            if False:
+                for m in self.RCNN_top.modules():
+                    if isinstance(m, nn.Conv2d):
+                        n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
+                        m.weight.data.normal_(0, math.sqrt(2. / n))
+                    elif isinstance(m, nn.BatchNorm2d):
+                        m.weight.data.fill_(1)
+                        m.bias.data.zero_()
 
         elif cfg.RESNET.CORE_CHOICE.USE == cfg.RESNET.CORE_CHOICE.RFCN:
             normal_init(self.rfcn_cls, 0, 0.01, cfg.TRAIN.TRUNCATED)
