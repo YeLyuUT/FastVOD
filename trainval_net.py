@@ -30,8 +30,9 @@ from model.utils.config import cfg, cfg_from_file, cfg_from_list, get_output_dir
 from model.utils.net_utils import weights_normal_init, save_net, load_net, \
       adjust_learning_rate, save_checkpoint, clip_gradient
 
-from model.faster_rcnn.vgg16 import vgg16
-from model.faster_rcnn.resnet import resnet
+#from model.faster_rcnn.vgg16 import vgg16
+#from model.faster_rcnn.resnet import resnet
+from model.faster_rcnn.faster_rcnn import _fasterRCNN
 
 def parse_args():
   """
@@ -120,6 +121,10 @@ def parse_args():
                       help='hyper parameters to load',
                       default=None, type=str)
 
+  parser.add_argument('--no_save',dest='no_save',
+                      help='whether to save model after every epoch.',
+                      action='store_true')
+
   args = parser.parse_args()
   return args
 
@@ -171,6 +176,10 @@ if __name__ == '__main__':
   elif args.dataset == "imagenet":
       args.imdb_name = "imagenet_train"
       args.imdbval_name = "imagenet_val"
+      args.set_cfgs = ['ANCHOR_SCALES', '[4, 8, 16, 32]', 'ANCHOR_RATIOS', '[0.5,1,2]', 'MAX_NUM_GT_BOXES', '30']
+  elif args.dataset == "imagenet_10_imgs":
+      args.imdb_name = "imagenet_10_imgs_train"
+      args.imdbval_name = "imagenet_10_imgs_val"
       args.set_cfgs = ['ANCHOR_SCALES', '[4, 8, 16, 32]', 'ANCHOR_RATIOS', '[0.5,1,2]', 'MAX_NUM_GT_BOXES', '30']
   elif args.dataset == "imagenetVID":
       args.imdb_name = 'imagenetVID_train'
@@ -248,14 +257,12 @@ if __name__ == '__main__':
 
   # initilize the network here.
 
-  if args.net == 'vgg16':
-    RCNN = vgg16(imdb.classes, pretrained=True, class_agnostic=args.class_agnostic)
-  elif args.net == 'res101':
-    RCNN = resnet(imdb.classes, 101, pretrained=True, class_agnostic=args.class_agnostic)
+  if args.net == 'res101':
+    RCNN = _fasterRCNN(imdb.classes, 101, pretrained=True, class_agnostic=args.class_agnostic)
   elif args.net == 'res50':
-    RCNN = resnet(imdb.classes, 50, pretrained=True, class_agnostic=args.class_agnostic)
+    RCNN = _fasterRCNN(imdb.classes, 50, pretrained=True, class_agnostic=args.class_agnostic)
   elif args.net == 'res152':
-    RCNN = resnet(imdb.classes, 152, pretrained=True, class_agnostic=args.class_agnostic)
+    RCNN = _fasterRCNN(imdb.classes, 152, pretrained=True, class_agnostic=args.class_agnostic)
   else:
     print("network is not defined")
     pdb.set_trace()
@@ -316,7 +323,7 @@ if __name__ == '__main__':
     loss_temp = 0
     start = time.time()
 
-    if epoch % (args.lr_decay_step + 1) == 0:
+    if args.lr_decay_step>0 and epoch % (args.lr_decay_step + 1) == 0:
         adjust_learning_rate(optimizer, args.lr_decay_gamma)
         lr *= args.lr_decay_gamma
 
@@ -391,18 +398,21 @@ if __name__ == '__main__':
         name_prefix = 'faster_rcnn'
     elif cfg.RESNET.CORE_CHOICE.USE == cfg.RESNET.CORE_CHOICE.RFCN_LIGHTHEAD:
         name_prefix = 'rfcn_light_head'
+    elif cfg.RESNET.CORE_CHOICE.USE == cfg.RESNET.CORE_CHOICE.RFCN:
+        name_prefix = 'rfcn'
     else:
         pass
-    save_name = os.path.join(output_dir, name_prefix + '_{}_{}_{}.pth'.format(args.session, epoch, step))
-    save_checkpoint({
-      'session': args.session,
-      'epoch': epoch + 1,
-      'model': RCNN.module.state_dict() if args.mGPUs else RCNN.state_dict(),
-      'optimizer': optimizer.state_dict(),
-      'pooling_mode': cfg.POOLING_MODE,
-      'class_agnostic': args.class_agnostic,
-    }, save_name)
-    print('save model: {}'.format(save_name))
+    if not args.no_save:
+        save_name = os.path.join(output_dir, name_prefix + '_{}_{}_{}.pth'.format(args.session, epoch, step))
+        save_checkpoint({
+          'session': args.session,
+          'epoch': epoch + 1,
+          'model': RCNN.module.state_dict() if args.mGPUs else RCNN.state_dict(),
+          'optimizer': optimizer.state_dict(),
+          'pooling_mode': cfg.POOLING_MODE,
+          'class_agnostic': args.class_agnostic,
+        }, save_name)
+        print('save model: {}'.format(save_name))
 
   if args.use_tfboard:
     logger.close()

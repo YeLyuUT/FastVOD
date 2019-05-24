@@ -30,6 +30,7 @@ from model.rpn.bbox_transform import bbox_transform_inv
 from model.utils.net_utils import save_net, load_net, vis_detections
 from model.faster_rcnn.vgg16 import vgg16
 from model.faster_rcnn.resnet import resnet
+from model.faster_rcnn.faster_rcnn import _fasterRCNN
 
 import pdb
 
@@ -48,8 +49,8 @@ def parse_args():
                       help='training dataset',
                       default='pascal_voc', type=str)
   parser.add_argument('--cfg', dest='cfg_file',
-                      help='optional config file',
-                      default='cfgs/vgg16.yml', type=str)
+                      help='hyper parameters to load',
+                      default=None, type=str)
   parser.add_argument('--net', dest='net',
                       help='vgg16, res50, res101, res152',
                       default='res101', type=str)
@@ -129,12 +130,23 @@ if __name__ == '__main__':
       args.imdbval_name = "vg_150-50-50_minival"
       args.set_cfgs = ['ANCHOR_SCALES', '[4, 8, 16, 32]', 'ANCHOR_RATIOS', '[0.5,1,2]']
 
-  args.cfg_file = "cfgs/{}_ls.yml".format(args.net) if args.large_scale else "cfgs/{}.yml".format(args.net)
+  if args.cfg_file is None:
+    args.cfg_file = "cfgs/{}_ls.yml".format(args.net) if args.large_scale else "cfgs/{}.yml".format(args.net)
 
   if args.cfg_file is not None:
     cfg_from_file(args.cfg_file)
   if args.set_cfgs is not None:
     cfg_from_list(args.set_cfgs)
+
+  # configure input output file names.
+  if cfg.RESNET.CORE_CHOICE.USE == cfg.RESNET.CORE_CHOICE.FASTER_RCNN:
+      pass
+  elif cfg.RESNET.CORE_CHOICE.USE == cfg.RESNET.CORE_CHOICE.RFCN_LIGHTHEAD:
+      pass
+  elif cfg.RESNET.CORE_CHOICE.USE == cfg.RESNET.CORE_CHOICE.RFCN:
+      pass
+  else:
+      raise ValueError('error.')
 
   print('Using config:')
   pprint.pprint(cfg)
@@ -148,27 +160,27 @@ if __name__ == '__main__':
   input_dir = args.load_dir + "/" + args.net + "/" + args.dataset
   if not os.path.exists(input_dir):
     raise Exception('There is no input directory for loading network from ' + input_dir)
+
+  #print('cfg.RESNET.CORE_CHOICE.USE:',cfg.RESNET.CORE_CHOICE.USE)
   load_name = os.path.join(input_dir,
-    'faster_rcnn_{}_{}_{}.pth'.format(args.checksession, args.checkepoch, args.checkpoint))
+    cfg.RESNET.CORE_CHOICE.USE+'_{}_{}_{}.pth'.format(args.checksession, args.checkepoch, args.checkpoint))
 
   # initilize the network here.
-  if args.net == 'vgg16':
-    fasterRCNN = vgg16(imdb.classes, pretrained=False, class_agnostic=args.class_agnostic)
-  elif args.net == 'res101':
-    fasterRCNN = resnet(imdb.classes, 101, pretrained=False, class_agnostic=args.class_agnostic)
+  if args.net == 'res101':
+    RCNN = _fasterRCNN(imdb.classes, 101, pretrained=False, class_agnostic=args.class_agnostic)
   elif args.net == 'res50':
-    fasterRCNN = resnet(imdb.classes, 50, pretrained=False, class_agnostic=args.class_agnostic)
+    RCNN = _fasterRCNN(imdb.classes, 50, pretrained=False, class_agnostic=args.class_agnostic)
   elif args.net == 'res152':
-    fasterRCNN = resnet(imdb.classes, 152, pretrained=False, class_agnostic=args.class_agnostic)
+    RCNN = _fasterRCNN(imdb.classes, 152, pretrained=False, class_agnostic=args.class_agnostic)
   else:
     print("network is not defined")
     pdb.set_trace()
 
-  fasterRCNN.create_architecture()
+  RCNN.create_architecture()
 
   print("load checkpoint %s" % (load_name))
   checkpoint = torch.load(load_name)
-  fasterRCNN.load_state_dict(checkpoint['model'])
+  RCNN.load_state_dict(checkpoint['model'])
   if 'pooling_mode' in checkpoint.keys():
     cfg.POOLING_MODE = checkpoint['pooling_mode']
 
@@ -197,7 +209,7 @@ if __name__ == '__main__':
     cfg.CUDA = True
 
   if args.cuda:
-    fasterRCNN.cuda()
+    RCNN.cuda()
 
   start = time.time()
   max_per_image = 100
@@ -209,7 +221,8 @@ if __name__ == '__main__':
   else:
     thresh = 0.0
 
-  save_name = 'faster_rcnn_10'
+  #save_name = 'light_head_rcnn_10'
+  save_name = cfg.RESNET.CORE_CHOICE.USE
   num_images = len(imdb.image_index)
   all_boxes = [[[] for _ in xrange(num_images)]
                for _ in xrange(imdb.num_classes)]
@@ -226,7 +239,7 @@ if __name__ == '__main__':
   _t = {'im_detect': time.time(), 'misc': time.time()}
   det_file = os.path.join(output_dir, 'detections.pkl')
 
-  fasterRCNN.eval()
+  RCNN.eval()
   empty_array = np.transpose(np.array([[],[],[],[],[]]), (1,0))
   for i in range(num_images):
 
@@ -240,7 +253,7 @@ if __name__ == '__main__':
       rois, cls_prob, bbox_pred, \
       rpn_loss_cls, rpn_loss_box, \
       RCNN_loss_cls, RCNN_loss_bbox, \
-      rois_label = fasterRCNN(im_data, im_info, gt_boxes, num_boxes)
+      rois_label = RCNN(im_data, im_info, gt_boxes, num_boxes)
 
       scores = cls_prob.data
       boxes = rois.data[:, :, 1:5]
