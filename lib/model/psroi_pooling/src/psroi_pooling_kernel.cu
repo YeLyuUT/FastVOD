@@ -28,7 +28,7 @@ __global__ void PSROIPoolForward(const int nthreads, const float* bottom_data,
 
         bottom_rois += n * 5;
         int roi_batch_ind = bottom_rois[0];
-	float roi_start_w =
+	    float roi_start_w =
         	static_cast<float>(round(bottom_rois[1])) * spatial_scale;
       	float roi_start_h =
         	static_cast<float>(round(bottom_rois[2])) * spatial_scale;
