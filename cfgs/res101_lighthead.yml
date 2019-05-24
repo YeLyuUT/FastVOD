@@ -21,4 +21,4 @@ CROP_RESIZE_WITH_MAX_POOL: False
 RESNET:
   CORE_CHOICE:
     #USE: 'faster_rcnn'
-    USE: 'rfcn_lighthead'
+    USE: 'rfcn_light_head'
