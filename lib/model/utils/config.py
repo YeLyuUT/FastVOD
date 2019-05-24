@@ -232,7 +232,7 @@ __C.RESNET.FIXED_BLOCKS = 1
 # This ugly design is resulted by the ugly inherent structure in the original faster-rcnn code.
 # RESNET.CORE_CHOICE has to be either 'rfcn_lighthead' or 'faster_rcnn'
 __C.RESNET.CORE_CHOICE = edict()
-__C.RESNET.CORE_CHOICE.RFCN_LIGHTHEAD = 'rfcn_lighthead'
+__C.RESNET.CORE_CHOICE.RFCN_LIGHTHEAD = 'rfcn_light_head'
 __C.RESNET.CORE_CHOICE.FASTER_RCNN = 'faster_rcnn'
 __C.RESNET.CORE_CHOICE.RFCN = 'rfcn'
 # Set the used value here.
@@ -302,7 +302,7 @@ __C.POOLING_MODE = 'crop'
 __C.POOLING_SIZE = 7
 
 # Maximal number of gt rois in an image during Training
-__C.MAX_NUM_GT_BOXES = 20
+__C.MAX_NUM_GT_BOXES = 100
 
 # Anchor scales for RPN
 __C.ANCHOR_SCALES = [8,16,32]
