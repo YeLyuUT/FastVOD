@@ -6,13 +6,14 @@ from torch.autograd import Variable
 import torchvision.models as models
 from torch.autograd import Variable
 import numpy as np
+from model.faster_rcnn.resnet import resnet
 from model.utils.config import cfg
-from model.rpn.rpn import _RPN
 from model.roi_pooling.modules.roi_pool import _RoIPooling
 from model.roi_crop.modules.roi_crop import _RoICrop
 from model.roi_align.modules.roi_align import RoIAlignAvg
 from model.psroi_pooling.modules.psroi_pool import PSRoIPool
 from model.rpn.proposal_target_layer_cascade import _ProposalTargetLayer
+from model.rpn.rpn import _RPN
 import math
 import time
 import pdb
@@ -52,13 +53,14 @@ class _global_context_layer(nn.Module):
                 #n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
                 #m.weight.data.normal_(0, math.sqrt(2. / n))
 
-class _fasterRCNN(nn.Module):
+class _fasterRCNN(resnet):
     """ faster RCNN """
-    def __init__(self, classes, class_agnostic):
-        super(_fasterRCNN, self).__init__()
+    def __init__(self, classes, num_layers=101, pretrained = False, class_agnostic = False, b_save_mid_convs = False):
+        super(_fasterRCNN, self).__init__(classes, num_layers, pretrained, class_agnostic)
         self.classes = classes
         self.n_classes = len(classes)
         self.class_agnostic = class_agnostic
+        self.b_save_mid_convs = b_save_mid_convs
         # loss
         self.RCNN_loss_cls = 0
         self.RCNN_loss_bbox = 0
@@ -94,15 +96,18 @@ class _fasterRCNN(nn.Module):
             if self.class_agnostic:
                 self.rfcn_bbox = nn.Conv2d(tmp_c_in, 4 * cfg.POOLING_SIZE * cfg.POOLING_SIZE, kernel_size=1)
             else:
-                self.rfcn_bbox = nn.Conv2d(tmp_c_in, 4 * self.n_classes * cfg.POOLING_SIZE * cfg.POOLING_SIZE, kernel_size=1)
+                # Need to remove the background class for bbox regression.
+                # Other circumstances are handled by torch.gather op later.
+                self.rfcn_bbox = nn.Conv2d(tmp_c_in, 4 * (self.n_classes) * cfg.POOLING_SIZE * cfg.POOLING_SIZE, kernel_size=1)
             # define psroi layers
             self.RCNN_psroi_score = PSRoIPool(cfg.POOLING_SIZE, cfg.POOLING_SIZE, 1.0 / 16.0, cfg.POOLING_SIZE, self.n_classes)
             if self.class_agnostic:
                 self.RCNN_psroi_bbox = PSRoIPool(cfg.POOLING_SIZE, cfg.POOLING_SIZE, 1.0 / 16.0, cfg.POOLING_SIZE, 4)
             else:
-                self.RCNN_psroi_bbox = PSRoIPool(cfg.POOLING_SIZE, cfg.POOLING_SIZE, 1.0 / 16.0, cfg.POOLING_SIZE, 4*self.n_classes)
+                self.RCNN_psroi_bbox = PSRoIPool(cfg.POOLING_SIZE, cfg.POOLING_SIZE, 1.0 / 16.0, cfg.POOLING_SIZE, 4*(self.n_classes))
             # define ave_roi_pooling layers.
-            self.ave_pooling = nn.AvgPool2d(cfg.POOLING_SIZE, stride=cfg.POOLING_SIZE)
+            self.ave_pooling_bbox = nn.AvgPool2d(cfg.POOLING_SIZE, stride=cfg.POOLING_SIZE)
+            self.ave_pooling_cls = nn.AvgPool2d(cfg.POOLING_SIZE, stride=cfg.POOLING_SIZE)
 
     def _init_weights(self):
         def normal_init(m, mean, stddev, truncated=False):
@@ -123,15 +128,6 @@ class _fasterRCNN(nn.Module):
         normal_init(self.RCNN_bbox_pred, 0, 0.001, cfg.TRAIN.TRUNCATED)
         if cfg.RESNET.CORE_CHOICE.USE == cfg.RESNET.CORE_CHOICE.RFCN_LIGHTHEAD:
             normal_init(self.fc_roi, 0, 0.01, cfg.TRAIN.TRUNCATED)
-            # TODO test if we need to re-initialize Conv5 block, which is in self.RCNN_top.
-            if False:
-                for m in self.RCNN_top.modules():
-                    if isinstance(m, nn.Conv2d):
-                        n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
-                        m.weight.data.normal_(0, math.sqrt(2. / n))
-                    elif isinstance(m, nn.BatchNorm2d):
-                        m.weight.data.fill_(1)
-                        m.bias.data.zero_()
 
         elif cfg.RESNET.CORE_CHOICE.USE == cfg.RESNET.CORE_CHOICE.RFCN:
             normal_init(self.rfcn_cls, 0, 0.01, cfg.TRAIN.TRUNCATED)
@@ -146,6 +142,11 @@ class _fasterRCNN(nn.Module):
 
         # feed image data to base model to obtain base feature map
         base_feat = self.RCNN_base(im_data)
+        #c1 = self.Conv_block_1(im_data)
+        #c2 = self.Conv_block_2(im_data)
+        #c3 = self.Conv_block_3(im_data)
+        #c4 = self.Conv_block_4(im_data)
+        #base_feat = c4
 
         # feed base feature map tp RPN to obtain rois
         rois_rpn, rpn_loss_cls, rpn_loss_bbox = self.RCNN_rpn(base_feat, im_info, gt_boxes, num_boxes)
@@ -160,8 +161,27 @@ class _fasterRCNN(nn.Module):
             rois_outside_ws = None
             rpn_loss_cls = 0
             rpn_loss_bbox = 0
+            rois = rois_rpn
 
         rois = Variable(rois)
+
+        # The original implementation puts c5 to R-CNN.
+        if not cfg.RESNET.CORE_CHOICE.USE == cfg.RESNET.CORE_CHOICE.FASTER_RCNN:
+            base_feat = self.RCNN_top(base_feat)
+        '''
+        if not cfg.RESNET.CORE_CHOICE.USE == cfg.RESNET.CORE_CHOICE.FASTER_RCNN:
+            c5 = self.Conv_block_5(c4)
+            base_feat = c5
+        else:
+            c5 = None
+
+        # register the tensors.
+        if self.b_save_mid_convs is True:
+            self.c3 = c3
+            self.c4 = c4
+            self.c5 = c5
+        '''
+
         # convert base feat to roi predictions.
         bbox_pred, cls_prob, cls_score = self.base_feat_to_roi_pred(base_feat, rois, rois_label)
 
@@ -170,7 +190,7 @@ class _fasterRCNN(nn.Module):
 
         if self.training:
             # classification loss
-            # handle OHEM here.
+            # handle online hard example mining (OHEM) here.
             if cfg.TRAIN.OHEM is True:
                 RCNN_loss_cls_tmp = F.cross_entropy(cls_score, rois_label, reduce=False)
                 RCNN_loss_bbox_tmp = _smooth_l1_loss(bbox_pred, rois_target, rois_inside_ws, rois_outside_ws, reduce=False)
@@ -199,7 +219,6 @@ class _fasterRCNN(nn.Module):
                 RCNN_loss_bbox = RCNN_loss_bbox.mean()
             else:
                 RCNN_loss_cls = F.cross_entropy(cls_score, rois_label)
-
                 # bounding box regression L1 loss
                 RCNN_loss_bbox = _smooth_l1_loss(bbox_pred, rois_target, rois_inside_ws, rois_outside_ws)
 
@@ -217,29 +236,38 @@ class _fasterRCNN(nn.Module):
         return rois, cls_prob, bbox_pred, rpn_loss_cls, rpn_loss_bbox, RCNN_loss_cls, RCNN_loss_bbox, rois_label
 
     def create_architecture(self):
+        # _init_modules should go before _init_weights as some layers are newly initialized.
         self._init_modules()
         self._init_weights()
 
     def base_feat_to_roi_pred(self, base_feat,rois, rois_label):
+        # handle base_feat
         if cfg.RESNET.CORE_CHOICE.USE == cfg.RESNET.CORE_CHOICE.RFCN_LIGHTHEAD:
-            # we need layer 4 before pooling op.
-            base_feat = self.RCNN_top(base_feat)
             # ctx op layer here.
             base_feat = self.g_ctx(base_feat)
             base_feat = self.relu(base_feat)
         elif cfg.RESNET.CORE_CHOICE.USE == cfg.RESNET.CORE_CHOICE.RFCN:
-            base_feat = self.RCNN_top(base_feat)
             base_feat_score = self.rfcn_cls(base_feat)
             base_feat_bbox = self.rfcn_bbox(base_feat)
-
+        else:
+            pass
+        # handle pooling.
         if cfg.RESNET.CORE_CHOICE.USE == cfg.RESNET.CORE_CHOICE.RFCN:
             # For RFCN, two pooled_feat blobs are needed. One for class score, one for bbox.
             assert cfg.POOLING_MODE =='pspool', 'R-FCN has to use ps-pooling. Please check your config file for correct input.'
             pooled_feat_score = self.RCNN_psroi_score(base_feat_score, rois.view(-1, 5))
             pooled_feat_bbox = self.RCNN_psroi_bbox(base_feat_bbox, rois.view(-1, 5))
-            cls_score = self.ave_pooling(pooled_feat_score)
-            bbox_pred = self.ave_pooling(pooled_feat_bbox)
+            cls_score = self.ave_pooling_cls(pooled_feat_score)
+            bbox_pred = self.ave_pooling_bbox(pooled_feat_bbox)
+            cls_score = cls_score.view((cls_score.shape[0], cls_score.shape[1]))
+            bbox_pred = bbox_pred.view((bbox_pred.shape[0], bbox_pred.shape[1]))
+            if self.training and not self.class_agnostic:
+                # select the corresponding columns according to roi labels
+                bbox_pred_view = bbox_pred.view(bbox_pred.size(0), int(bbox_pred.size(1) / 4), 4)
+                bbox_pred_select = torch.gather(bbox_pred_view, 1, rois_label.view(rois_label.size(0), 1, 1).expand(rois_label.size(0), 1,4))
+                bbox_pred = bbox_pred_select.squeeze(1)
             cls_prob = F.softmax(cls_score, 1)
+            return bbox_pred, cls_prob, cls_score
         else:
             if cfg.POOLING_MODE == 'crop':
                 # pdb.set_trace()
@@ -254,9 +282,9 @@ class _fasterRCNN(nn.Module):
             elif cfg.POOLING_MODE == 'pool':
                 pooled_feat = self.RCNN_roi_pool(base_feat, rois.view(-1, 5))
             elif cfg.POOLING_MODE =='pspool':
-                pooled_feat = self.RCNN_psroi_pool(base_feat, rois.view(-1,5))
+                pooled_feat = self.RCNN_psroi_pool(base_feat, rois.view(-1, 5))
             bbox_pred, cls_prob, cls_score = self.roi_wise_pred(pooled_feat, rois_label)
-        return bbox_pred, cls_prob, cls_score
+            return bbox_pred, cls_prob, cls_score
 
     def roi_wise_pred(self,pooled_feat,rois_label=None):
         # feed pooled features to top model

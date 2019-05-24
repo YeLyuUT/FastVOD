@@ -3,8 +3,6 @@ from __future__ import division
 from __future__ import print_function
 
 from model.utils.config import cfg
-from model.faster_rcnn.faster_rcnn import _fasterRCNN
-from model.faster_rcnn.rfcn import _rfcn_lighthead
 
 import torch
 import torch.nn as nn
@@ -219,17 +217,22 @@ def resnet152(pretrained=False):
     model.load_state_dict(model_zoo.load_url(model_urls['resnet152']))
   return model
 
-class resnet(_fasterRCNN):
+class resnet(nn.Module):
   def __init__(self, classes, num_layers=101, pretrained=False, class_agnostic=False):
+    super(resnet, self).__init__()
     self.model_path = 'data/pretrained_model/resnet101_caffe.pth'
     self.dout_base_model = 1024
     self.pretrained = pretrained
     self.class_agnostic = class_agnostic
 
-    _fasterRCNN.__init__(self, classes, class_agnostic)
-
   def _init_modules(self):
     resnet = resnet101()
+    # define original conv blocks to extract middle features.
+    #self.Conv_block_1 = nn.Sequential(resnet.conv1, resnet.bn1, resnet.relu, resnet.maxpool)
+    #self.Conv_block_2 = nn.Sequential(resnet.layer1)
+    #self.Conv_block_3 = nn.Sequential(resnet.layer2)
+    #self.Conv_block_4 = nn.Sequential(resnet.layer3)
+    #self.Conv_block_5 = nn.Sequential(resnet.layer4)
 
     if self.pretrained == True:
       print("Loading pretrained weights from %s" %(self.model_path))
@@ -288,4 +291,3 @@ class resnet(_fasterRCNN):
   def _head_to_tail(self, pool5):
     fc7 = self.RCNN_top(pool5).mean(3).mean(2)
     return fc7
-
