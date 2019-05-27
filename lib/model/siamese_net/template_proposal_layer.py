@@ -1,0 +1,1 @@
+# propose template images. We use gt boxes from image 1 and the detections to create new positive and negative samples.
