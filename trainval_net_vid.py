@@ -296,7 +296,7 @@ if __name__ == '__main__':
 
   # train set
   # -- Note: Use validation set and disable the flipped to enable faster loading.
-  cfg.TRAIN.USE_FLIPPED = True
+  cfg.TRAIN.USE_FLIPPED = False
   cfg.USE_GPU_NMS = args.cuda
   # TODO change combined_roidb.
   imdb, roidb, ratio_list, ratio_index = combined_roidb_VID(args.imdb_name)
@@ -401,13 +401,17 @@ if __name__ == '__main__':
       #print(im_data.shape)
 
       RCNN.zero_grad()
+      ##################################
+      #        Detection part          #
+      ##################################
       # detection loss for image 1.
       rois_1, cls_prob_1, bbox_pred_1, \
       rpn_loss_cls_1, rpn_loss_box_1, \
       RCNN_loss_cls_1, RCNN_loss_bbox_1, \
       rois_label_1 = RCNN(im_data_1, im_info_1, gt_boxes_1, num_boxes_1)
 
-      c3_1, c4_1, c5_1 = RCNN.c_3, RCNN.c_4, RCNN.c_5
+      #c3_1, c4_1, c5_1 = RCNN.c_3, RCNN.c_4, RCNN.c_5
+      conv4_feat_1 = RCNN.Conv4_feat
 
       loss = rpn_loss_cls_1.mean() + rpn_loss_box_1.mean() \
            + RCNN_loss_cls_1.mean() + RCNN_loss_bbox_1.mean()
@@ -418,13 +422,18 @@ if __name__ == '__main__':
       RCNN_loss_cls_2, RCNN_loss_bbox_2, \
       rois_label_2 = RCNN(im_data_2, im_info_2, gt_boxes_2, num_boxes_2)
 
-      c3_2, c4_2, c5_2 = RCNN.c_3, RCNN.c_4, RCNN.c_5
+      #c3_2, c4_2, c5_2 = RCNN.c_3, RCNN.c_4, RCNN.c_5
+      conv4_feat_2 = RCNN.Conv4_feat
 
       # beware, need to use += operation here.
       loss += rpn_loss_cls_2.mean() + rpn_loss_box_2.mean() \
              + RCNN_loss_cls_2.mean() + RCNN_loss_bbox_2.mean()
 
+      ##################################
+      #        Tracking part           #
+      ##################################
       # define tracking loss here.
+
 
 
       loss_temp += loss.item()
