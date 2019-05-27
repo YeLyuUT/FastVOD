@@ -73,6 +73,7 @@ class _fasterRCNN(resnet):
 
         self.grid_size = cfg.POOLING_SIZE * 2 if cfg.CROP_RESIZE_WITH_MAX_POOL else cfg.POOLING_SIZE
         self.RCNN_roi_crop = _RoICrop()
+        self.Conv4_feat = None
 
         if cfg.RESNET.CORE_CHOICE.USE == cfg.RESNET.CORE_CHOICE.FASTER_RCNN:
             print('RCNN uses Faster RCNN core.')
@@ -149,6 +150,7 @@ class _fasterRCNN(resnet):
         #base_feat = c4
 
         # feed base feature map tp RPN to obtain rois
+        self.Conv4_feat = base_feat
         rois_rpn, rpn_loss_cls, rpn_loss_bbox = self.RCNN_rpn(base_feat, im_info, gt_boxes, num_boxes)
 
         # if it is training phrase, then use ground trubut bboxes for refining
@@ -201,13 +203,13 @@ class _fasterRCNN(resnet):
                 # redo forward to train hard examples only.
                 # select first cfg.TRAIN.OHEM_BATCH_SIZE rois for training.
                 index = index[:cfg.TRAIN.OHEM_BATCH_SIZE*batch_size]
-                rois            = rois.view(-1,5).index_select(0, index)
+                rois_view       = rois.view(-1,5).index_select(0, index)
                 rois_label      = rois_label.index_select(0, index)
                 rois_target     = rois_target.index_select(0, index)
                 rois_inside_ws  = rois_inside_ws.index_select(0, index)
                 rois_outside_ws = rois_outside_ws.index_select(0, index)
 
-                bbox_pred, cls_prob, cls_score = self.base_feat_to_roi_pred(base_feat, rois, rois_label)
+                bbox_pred, cls_prob, cls_score = self.base_feat_to_roi_pred(base_feat, rois_view, rois_label)
 
                 RCNN_loss_cls = F.cross_entropy(cls_score, rois_label, reduce = False)
                 # bounding box regression L1 loss
@@ -240,7 +242,7 @@ class _fasterRCNN(resnet):
         self._init_modules()
         self._init_weights()
 
-    def base_feat_to_roi_pred(self, base_feat,rois, rois_label):
+    def base_feat_to_roi_pred(self, base_feat, rois, rois_label):
         # handle base_feat
         if cfg.RESNET.CORE_CHOICE.USE == cfg.RESNET.CORE_CHOICE.RFCN_LIGHTHEAD:
             # ctx op layer here.
