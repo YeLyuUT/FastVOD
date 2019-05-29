@@ -17,6 +17,7 @@ from datasets.imagenet import imagenet
 from datasets.imagenetVID import imagenetVID
 from datasets.imagenetDETVID import imagenetDETVID
 from datasets.imagenet_10_imgs import imagenet_10_imgs
+from datasets.imagenetVID_1_vid import imagenetVID_1_vid
 from datasets.vg import vg
 
 import numpy as np
@@ -67,6 +68,12 @@ for split in ['train', 'val', 'val1', 'val2', 'test']:
     devkit_path = 'data/imagenet/ILSVRC/devkit'
     data_path = 'data/imagenet/ILSVRC'
     __sets[name] = (lambda split=split, devkit_path=devkit_path, data_path=data_path: imagenet_10_imgs(split,devkit_path,data_path))
+
+for split in ['train', 'val', 'test']:
+    name = 'imagenetVID_1_vid_{}'.format(split)
+    devkit_path = 'data/imagenet/ILSVRC/devkit'
+    data_path = 'data/imagenet/ILSVRC'
+    __sets[name] = (lambda split=split, devkit_path=devkit_path, data_path=data_path: imagenetVID_1_vid(split, devkit_path, data_path))
 
 for split in ['train', 'val', 'test']:
     name = 'imagenetVID_{}'.format(split)

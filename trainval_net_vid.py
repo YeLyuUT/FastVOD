@@ -263,6 +263,10 @@ if __name__ == '__main__':
       args.imdb_name = "imagenet_10_imgs_train"
       args.imdbval_name = "imagenet_10_imgs_val"
       args.set_cfgs = ['ANCHOR_SCALES', '[4, 8, 16, 32]', 'ANCHOR_RATIOS', '[0.5,1,2]', 'MAX_NUM_GT_BOXES', '30']
+  elif args.dataset == "imagenetVID_1_vid":
+      args.imdb_name = 'imagenetVID_1_vid_train'
+      args.imdbval_name = 'imagenetVID_1_vid_val'
+      args.set_cfgs = ['ANCHOR_SCALES', '[4, 8, 16, 32]', 'ANCHOR_RATIOS', '[0.5,1,2]', 'MAX_NUM_GT_BOXES', '30']
   elif args.dataset == "imagenetVID":
       args.imdb_name = 'imagenetVID_train'
       args.imdbval_name = 'imagenetVID_val'
@@ -350,8 +354,10 @@ if __name__ == '__main__':
     RCNN.cuda()
 
   if args.resume:
-    load_name = os.path.join(output_dir,
-      'faster_rcnn_{}_{}_{}.pth'.format(args.checksession, args.checkepoch, args.checkpoint))
+    load_name_predix = cfg.RESNET.CORE_CHOICE.USE
+    if cfg.TRAIN.OHEM is True:
+      load_name_predix = load_name_predix + '_OHEM'
+    load_name = os.path.join(output_dir,load_name_predix + '_{}_{}_{}.pth'.format(args.checksession, args.checkepoch,args.checkpoint))
     print("loading checkpoint %s" % (load_name))
     checkpoint = torch.load(load_name)
     args.session = checkpoint['session']

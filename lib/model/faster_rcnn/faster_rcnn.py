@@ -74,6 +74,7 @@ class _fasterRCNN(resnet):
         self.grid_size = cfg.POOLING_SIZE * 2 if cfg.CROP_RESIZE_WITH_MAX_POOL else cfg.POOLING_SIZE
         self.RCNN_roi_crop = _RoICrop()
         self.Conv4_feat = None
+        self.rpn_rois = None
 
         if cfg.RESNET.CORE_CHOICE.USE == cfg.RESNET.CORE_CHOICE.FASTER_RCNN:
             print('RCNN uses Faster RCNN core.')
@@ -135,8 +136,14 @@ class _fasterRCNN(resnet):
             normal_init(self.rfcn_bbox, 0, 0.001, cfg.TRAIN.TRUNCATED)
 
     def forward(self, im_data, im_info, gt_boxes, num_boxes):
+        self.Conv4_feat = None
+        self.rpn_rois = None
+
         batch_size = im_data.size(0)
 
+        # reduce gt_boxe from length 6 to 5 if necessary.
+        if gt_boxes.size(2)==6:
+            gt_boxes = gt_boxes[:,:,:5]
         im_info = im_info.data
         gt_boxes = gt_boxes.data
         num_boxes = num_boxes.data
@@ -152,8 +159,8 @@ class _fasterRCNN(resnet):
         # feed base feature map tp RPN to obtain rois
         self.Conv4_feat = base_feat
         rois_rpn, rpn_loss_cls, rpn_loss_bbox = self.RCNN_rpn(base_feat, im_info, gt_boxes, num_boxes)
-
-        # if it is training phrase, then use ground trubut bboxes for refining
+        self.rpn_rois = rois_rpn
+        # if it is training phrase, then use ground truth bboxes for refinement.
         if self.training:
             rois, rois_label, rois_target, rois_inside_ws, rois_outside_ws = self.prepare_rois_for_training(rois_rpn, gt_boxes, num_boxes)
         else:
@@ -199,6 +206,18 @@ class _fasterRCNN(resnet):
                 #assert RCNN_loss_cls_tmp.size()==RCNN_loss_bbox_tmp.size(), 'size not equal.{}!={}'.format(RCNN_loss_cls_tmp.size(),RCNN_loss_bbox_tmp.size())
                 RCNN_loss_tmp = RCNN_loss_cls_tmp + RCNN_loss_bbox_tmp
                 sorted_RCNN_loss_tmp, index = torch.sort(RCNN_loss_tmp, descending=True)
+
+                # TODO add nms here.
+                '''
+                ordered_boxes = rois.view(-1, 5)[index,1:5]
+                loss_boxes = torch.cat((ordered_boxes, sorted_RCNN_loss_tmp), 1)
+                keep = nms(loss_boxes, cfg.TRAIN.OHEM_NMS).long().view(-1)
+                keep = keep[:cfg.TRAIN.OHEM_BATCH_SIZE*batch_size]
+                index.detach_()
+                # we only keep the first <cfg.TRAIN.OHEM_BATCH_SIZE*batch_size> indexes.
+                index = index[keep] 
+                '''
+
                 index.detach_()
                 # redo forward to train hard examples only.
                 # select first cfg.TRAIN.OHEM_BATCH_SIZE rois for training.
