@@ -15,7 +15,12 @@ import scipy.sparse
 import scipy.io as sio
 import subprocess
 import pdb
-import pickle
+try:
+   import cPickle as pickle
+   print('import cPickle')
+except:
+   import pickle
+   print('import python pickle')
 import random
 from PIL import Image
 try:
@@ -135,6 +140,7 @@ class imagenetDETVID(imdb):
                     for line in tmp_index:
                         line = line.split(' ')
                         # The list file given by ImageNet has some problem, we need to handle it by checking line item.
+                        # TODO actually there is no problem.
                         if len(line)==2:
                             vtmp_index.append(self._data_path + '/Data/VID/train/' + line[0])
                         elif len(line)==1:
