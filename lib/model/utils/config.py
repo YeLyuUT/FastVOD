@@ -164,6 +164,8 @@ __C.TRAIN.OHEM = False
 # OHEM batch size defines the number of selected samples of all original rois.
 # The number should be smaller than batch size(__C.TRAIN.BATCH_SIZE).
 __C.TRAIN.OHEM_BATCH_SIZE = 128
+# Threshold for dedup.
+__C.TRAIN.OHEM_NMS = 0.7
 
 #
 # Testing options
@@ -255,6 +257,35 @@ __C.MOBILENET.WEIGHT_DECAY = 0.00004
 
 # Depth multiplier
 __C.MOBILENET.DEPTH_MULTIPLIER = 1.
+
+#########################
+#      Siamese RPN      #
+#########################
+__C.SIAMESE = edict()
+# Template selection threshold.
+__C.SIAMESE.TEMPLATE_SEL_FG_THRESH = 0.7
+__C.SIAMESE.TEMPLATE_SEL_BG_THRESH_LO = 0.0
+__C.SIAMESE.TEMPLATE_SEL_BG_THRESH_HI = 0.3
+__C.SIAMESE.TEMPLATE_SEL_BATCH_SIZE = 64
+# Threshold used to select class template.
+__C.SIAMESE.TEMPLATE_SEL_CLS_THRESH = 0.8
+# The weight kernel size of the template.
+__C.SIAMESE.TEMPLATE_SZ = 5
+
+# Other RPN parameters.
+__C.SIAMESE.RPN_BATCH_SIZE = 256
+__C.SIAMESE.RPN_NMS_THRESH = 0.7
+__C.SIAMESE.RPN_PRE_NMS_TOP_N = 100
+__C.SIAMESE.RPN_POST_NMS_TOP_N = 1
+# Proposal height and width both need to be greater than RPN_MIN_SIZE (at orig image scale)
+__C.SIAMESE.RPN_MIN_SIZE = 8
+__C.SIAMESE.RPN_POSITIVE_OVERLAP = 0.7
+# IOU < thresh: negative example
+__C.SIAMESE.RPN_NEGATIVE_OVERLAP = 0.3
+# This should be 1.0. As we only have positive training samples.
+__C.SIAMESE.FG_FRACTION = 1.0
+# SIAMESE.CROP_TYPE can be one of ('roi_align',)
+__C.SIAMESE.CROP_TYPE = 'roi_align'
 
 #
 # MISC
