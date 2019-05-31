@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# CUDA_PATH=/usr/local/cuda/
+#CUDA_PATH=/usr/local/cuda/
 
 cd src
 echo "Compiling stnm kernels by nvcc..."
