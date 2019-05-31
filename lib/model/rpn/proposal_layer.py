@@ -125,6 +125,7 @@ class _ProposalLayer(nn.Module):
         _, order = torch.sort(scores_keep, 1, True)
 
         output = scores.new(batch_size, post_nms_topN, 5).zero_()
+        output_score = scores.new(batch_size, post_nms_topN, 2).zero_()
         for i in range(batch_size):
             # # 3. remove predicted boxes with either height or width < threshold
             # # (NOTE: convert min_size to input image scale stored in im_info[2])
@@ -157,8 +158,9 @@ class _ProposalLayer(nn.Module):
             num_proposal = proposals_single.size(0)
             output[i,:,0] = i
             output[i,:num_proposal,1:] = proposals_single
-
-        return output
+            output_score[i,:,0] = i
+            output_score[i,:num_proposal,1:] = scores_single
+        return output, output_score
 
     def backward(self, top, propagate_down, bottom):
         """This layer does not propagate gradients."""
