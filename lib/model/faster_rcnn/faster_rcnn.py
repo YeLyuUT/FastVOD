@@ -142,11 +142,13 @@ class _fasterRCNN(resnet):
         batch_size = im_data.size(0)
 
         # reduce gt_boxe from length 6 to 5 if necessary.
-        if gt_boxes.size(2)==6:
-            gt_boxes = gt_boxes[:,:,:5]
+        if gt_boxes is not None:
+            if gt_boxes.size(2)==6:
+                gt_boxes = gt_boxes[:,:,:5]
+            gt_boxes = gt_boxes.data
+            num_boxes = num_boxes.data
+
         im_info = im_info.data
-        gt_boxes = gt_boxes.data
-        num_boxes = num_boxes.data
 
         # feed image data to base model to obtain base feature map
         base_feat = self.RCNN_base(im_data)
