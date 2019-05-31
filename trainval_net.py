@@ -295,8 +295,11 @@ if __name__ == '__main__':
     RCNN.cuda()
 
   if args.resume:
+    load_name_predix = cfg.RESNET.CORE_CHOICE.USE
+    if cfg.TRAIN.OHEM is True:
+        load_name_predix = load_name_predix + '_OHEM'
     load_name = os.path.join(output_dir,
-      'faster_rcnn_{}_{}_{}.pth'.format(args.checksession, args.checkepoch, args.checkpoint))
+      load_name_predix+'_{}_{}_{}.pth'.format(args.checksession, args.checkepoch, args.checkpoint))
     print("loading checkpoint %s" % (load_name))
     checkpoint = torch.load(load_name)
     args.session = checkpoint['session']
@@ -402,6 +405,8 @@ if __name__ == '__main__':
         name_prefix = 'rfcn'
     else:
         pass
+    if cfg.TRAIN.OHEM is True:
+        name_prefix = name_prefix+'_OHEM'
     if not args.no_save:
         save_name = os.path.join(output_dir, name_prefix + '_{}_{}_{}.pth'.format(args.session, epoch, step))
         save_checkpoint({
