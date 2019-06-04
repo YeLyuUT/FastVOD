@@ -37,8 +37,10 @@ class _TemplateTargetProposalLayer(nn.Module):
             batch_size,
             template_rois_all.size(1),
             feats1.size(1),
-            cfg.SIAMESE.TEMPLATE_SZ,
-            cfg.SIAMESE.TEMPLATE_SZ)
+            1,
+            1)
+            #cfg.SIAMESE.TEMPLATE_SZ,
+            #cfg.SIAMESE.TEMPLATE_SZ)
 
         # for each item, it is (target_feat, template_weights, gt_boxes for each weight).
         # target gt_boxes should be of shape (n, 1, 6).
