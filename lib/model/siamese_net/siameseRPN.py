@@ -6,7 +6,8 @@ import torchvision.models as models
 from torch.autograd import Variable
 import numpy as np
 from model.utils.config import cfg
-from model.rpn.proposal_layer import _ProposalLayer
+#from model.rpn.proposal_layer import _ProposalLayer
+from model.siamese_net.siam_proposal_layer import _SiamProposalLayer
 from model.rpn.anchor_target_layer import _AnchorTargetLayer
 from model.utils.net_utils import _smooth_l1_loss
 
@@ -16,7 +17,7 @@ class siameseRPN(nn.Module):
         super(siameseRPN, self).__init__()
         self.use_separable_correlation = use_separable_correlation
         self.din = input_dim  # get depth of input feature map, e.g., 512
-        self.correlation_channel = 256
+        self.correlation_channel = cfg.SIAMESE.NUM_CHANNELS_FOR_CORRELATION
         self.anchor_scales = anchor_scales
         self.anchor_ratios = anchor_ratios
 
@@ -35,7 +36,7 @@ class siameseRPN(nn.Module):
         self.RPN_bbox_pred = nn.Conv2d(self.din, self.correlation_channel * self.nc_bbox_out, 1, 1, 0)
 
         # define proposal layer
-        self.RPN_proposal = _ProposalLayer(self.feat_stride, self.anchor_scales, self.anchor_ratios)
+        self.RPN_proposal = _SiamProposalLayer(self.feat_stride, self.anchor_scales, self.anchor_ratios)
 
         # define anchor target layer
         self.RPN_anchor_target = _AnchorTargetLayer(self.feat_stride, self.anchor_scales, self.anchor_ratios)
