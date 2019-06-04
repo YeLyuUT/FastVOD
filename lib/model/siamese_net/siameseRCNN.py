@@ -6,6 +6,8 @@ from model.faster_rcnn.faster_rcnn import _fasterRCNN
 from model.siamese_net.template_target_proposal_layer import _TemplateTargetProposalLayer
 from model.siamese_net.siameseRPN import siameseRPN
 from model.utils.config import cfg
+from model.siamese_net.nms_tracking import trNMS
+from torch.autograd import Variable
 
 class _siameseRCNN(nn.Module):
     def __init__(self, classes, args):
@@ -28,17 +30,36 @@ class _siameseRCNN(nn.Module):
             return self.forward_training(im_data_1, im_info_1, num_boxes_1, gt_boxes_1, im_data_2, im_info_2, num_boxes_2, gt_boxes_2)
         else:
             # testing.
-            im_data, im_info, template_weights = input
-            return self.forward_testing(template_weights, im_data, im_info, gt_boxes=None, num_boxes=None)
+            im_data, im_info, template_weights, rois_tracking = input
+            return self.forward_testing(rois_tracking, template_weights, im_data, im_info, gt_boxes=None, num_boxes=None)
 
-    def forward_testing(self, template_weights, im_data, im_info, gt_boxes, num_boxes):
+    def forward_RCNN(self, base_feat, rois):
+        bbox_pred, cls_prob, cls_score = self.RCNN.base_feat_to_roi_pred(base_feat, rois, None)
+        return bbox_pred, cls_prob, cls_score
+
+    def forward_testing(self, rois_tracking, template_weights, im_data, im_info, gt_boxes, num_boxes):
+        '''
+
+        :param rois_tracking: should be of size (N, 4+cls_num). eg. 35 for imagenetVID. (x1,y1,x2,y2,cls0,cls1,cls2,...,cls30).
+        :param template_weights: should be a batch of template_weights (N, c_out,c_in,h,w).
+        :param im_data:
+        :param im_info:
+        :param gt_boxes:
+        :param num_boxes:
+        :return:
+        '''
+        #################
         # Detection part.
+        #################
         det_rois, det_cls_prob, det_bbox_pred, \
         rpn_loss_cls, rpn_loss_box, \
         RCNN_loss_cls, RCNN_loss_bbox, \
         det_rois_label = self.RCNN(im_data, im_info, gt_boxes, num_boxes)
 
-        if template_weights is not None:
+        #################
+        # Tracking part.
+        #################
+        if rois_tracking is not None:
             # Tracking part.
             #target_feat, template_weights, target_gt_boxes = None
             target_feat = self.RCNN.Conv4_feat
@@ -47,10 +68,44 @@ class _siameseRCNN(nn.Module):
                        im_info,
                        template_weights)
             siam_rois, siam_scores, loss_cls, loss_box = self.siameseRPN_layer(input_v)
-        else:
-            siam_rois, siam_scores, loss_cls, loss_box = None, None, 0, 0
-        return siam_rois, siam_scores, det_rois, det_rois_label, det_cls_prob, det_bbox_pred
+            siam_rois = Variable(siam_rois)
+            siam_scores = Variable(siam_scores)
+            # NMS for siam rois.
+            # TODO rois_tracking should be sliced.
+            sel_siam_rois, sel_siam_scores = trNMS(rois=rois_tracking[:, :4], rpn_rois=siam_rois, scores=siam_scores)
+            # Add labels.
+            batch_ids = sel_siam_rois.new_zeros((sel_siam_rois.size(0), 1))
+            sel_siam_rois = torch.cat((batch_ids, sel_siam_rois), 1)
+            tra_det_bbox_pred, tra_det_cls_prob, tra_det_cls_score = self.forward_RCNN(self.RCNN.base_feat_for_roi, sel_siam_rois)
 
+            merged_probs = self.probs_for_tracking(
+                fg_scores = sel_siam_scores,
+                track_cls_probs = rois_tracking[4:],
+                tra_det_cls_probs = tra_det_cls_prob)
+            siam_bbox_pred = tra_det_bbox_pred
+            siam_cls_prob = merged_probs
+        else:
+            siam_rois, siam_bbox_pred, siam_cls_prob, loss_cls, loss_box = None, None, None, 0, 0
+
+        return siam_rois, siam_bbox_pred, siam_cls_prob, det_rois, det_rois_label, det_cls_prob, det_bbox_pred
+
+    def probs_for_tracking(self, fg_scores, track_cls_probs, tra_det_cls_probs):
+        '''
+
+        :param fg_scores: size (N, 1)
+        :param track_cls_probs: size (N, 31)
+        :param det_cls_probs: size (N, 31)
+        :return:
+        '''
+        mult_scores = fg_scores.repeat(fg_scores.size(0), track_cls_probs.size(1))
+        sum_prob = track_cls_probs[:,1:].sum(dim=1, keepdim=True)+1e-5
+        mult_scores[:, 1:] = mult_scores[:, 1:]*track_cls_probs[:,1:]/sum_prob
+        mult_scores[:, 0] = 1.0-mult_scores[:, 0]
+
+        merged_probs = mult_scores+tra_det_cls_probs*cfg.SIAMESE.DET_WEIGHT
+        sum_merged_probs = merged_probs.sum(dim=1, keepdim=True)+1e-5
+        merged_probs = merged_probs/sum_merged_probs
+        return merged_probs
 
     def forward_training(self,im_data_1, im_info_1, num_boxes_1, gt_boxes_1,
                      im_data_2, im_info_2, num_boxes_2, gt_boxes_2):
@@ -61,7 +116,7 @@ class _siameseRCNN(nn.Module):
         rois_1, cls_prob_1, bbox_pred_1, \
         rpn_loss_cls_1, rpn_loss_box_1, \
         RCNN_loss_cls_1, RCNN_loss_bbox_1, \
-        rois_label_1 = self.RCNN(im_data_1, im_info_1, gt_boxes_1, num_boxes_1)
+        rois_label_1 = self.RCNN(im_data_1, im_info_1, gt_boxes_1[:,:,:5], num_boxes_1)
 
         # c3_1, c4_1, c5_1 = RCNN.c_3, RCNN.c_4, RCNN.c_5
         conv4_feat_1 = self.RCNN.Conv4_feat
@@ -71,7 +126,7 @@ class _siameseRCNN(nn.Module):
         rois_2, cls_prob_2, bbox_pred_2, \
         rpn_loss_cls_2, rpn_loss_box_2, \
         RCNN_loss_cls_2, RCNN_loss_bbox_2, \
-        rois_label_2 = self.RCNN(im_data_2, im_info_2, gt_boxes_2, num_boxes_2)
+        rois_label_2 = self.RCNN(im_data_2, im_info_2, gt_boxes_2[:,:,:5], num_boxes_2)
 
         # c3_2, c4_2, c5_2 = RCNN.c_3, RCNN.c_4, RCNN.c_5
         conv4_feat_2 = self.RCNN.Conv4_feat
@@ -110,6 +165,8 @@ class _siameseRCNN(nn.Module):
         RCNN_loss_bbox = (RCNN_loss_bbox_1.mean() + RCNN_loss_bbox_2.mean()) / 2
         rois_label = torch.cat((rois_label_1, rois_label_2),0)
         return rois, scores, rois_label, siamRPN_loss_cls, siamRPN_loss_box, rpn_loss_cls, rpn_loss_box, RCNN_loss_cls, RCNN_loss_bbox
+
+
 
 
 
