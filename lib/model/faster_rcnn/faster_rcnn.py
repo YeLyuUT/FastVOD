@@ -14,6 +14,7 @@ from model.roi_align.modules.roi_align import RoIAlignAvg
 from model.psroi_pooling.modules.psroi_pool import PSRoIPool
 from model.rpn.proposal_target_layer_cascade import _ProposalTargetLayer
 from model.rpn.rpn import _RPN
+from model.nms.nms_wrapper import nms
 import math
 import time
 import pdb
@@ -50,6 +51,8 @@ class _global_context_layer(nn.Module):
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 m.weight.data.normal_(0, 0.01)
+                if m.bias is not None:
+                    m.bias.data.zero_()
                 #n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
                 #m.weight.data.normal_(0, math.sqrt(2. / n))
 
@@ -143,8 +146,10 @@ class _fasterRCNN(resnet):
 
         # reduce gt_boxe from length 6 to 5 if necessary.
         if gt_boxes is not None:
-            if gt_boxes.size(2)==6:
+            if gt_boxes.dim==3 and gt_boxes.size(2)==6:
                 gt_boxes = gt_boxes[:,:,:5]
+            if gt_boxes.dim==2 and gt_boxes.size(1)==6:
+                gt_boxes = gt_boxes[:,:5]
             gt_boxes = gt_boxes.data
             num_boxes = num_boxes.data
 
@@ -152,11 +157,6 @@ class _fasterRCNN(resnet):
 
         # feed image data to base model to obtain base feature map
         base_feat = self.RCNN_base(im_data)
-        #c1 = self.Conv_block_1(im_data)
-        #c2 = self.Conv_block_2(im_data)
-        #c3 = self.Conv_block_3(im_data)
-        #c4 = self.Conv_block_4(im_data)
-        #base_feat = c4
 
         # feed base feature map tp RPN to obtain rois
         self.Conv4_feat = base_feat
@@ -179,21 +179,9 @@ class _fasterRCNN(resnet):
         # The original implementation puts c5 to R-CNN.
         if not cfg.RESNET.CORE_CHOICE.USE == cfg.RESNET.CORE_CHOICE.FASTER_RCNN:
             base_feat = self.RCNN_top(base_feat)
-        '''
-        if not cfg.RESNET.CORE_CHOICE.USE == cfg.RESNET.CORE_CHOICE.FASTER_RCNN:
-            c5 = self.Conv_block_5(c4)
-            base_feat = c5
-        else:
-            c5 = None
-
-        # register the tensors.
-        if self.b_save_mid_convs is True:
-            self.c3 = c3
-            self.c4 = c4
-            self.c5 = c5
-        '''
 
         # convert base feat to roi predictions.
+        self.base_feat_for_roi = base_feat
         bbox_pred, cls_prob, cls_score = self.base_feat_to_roi_pred(base_feat, rois, rois_label)
 
         RCNN_loss_cls = 0
@@ -210,17 +198,15 @@ class _fasterRCNN(resnet):
                 sorted_RCNN_loss_tmp, index = torch.sort(RCNN_loss_tmp, descending=True)
 
                 # TODO add nms here.
-                '''
                 ordered_boxes = rois.view(-1, 5)[index,1:5]
-                loss_boxes = torch.cat((ordered_boxes, sorted_RCNN_loss_tmp), 1)
+                loss_boxes = torch.cat((ordered_boxes, sorted_RCNN_loss_tmp.view(-1,1)), 1)
                 keep = nms(loss_boxes, cfg.TRAIN.OHEM_NMS).long().view(-1)
                 keep = keep[:cfg.TRAIN.OHEM_BATCH_SIZE*batch_size]
-                index.detach_()
                 # we only keep the first <cfg.TRAIN.OHEM_BATCH_SIZE*batch_size> indexes.
-                index = index[keep] 
-                '''
+                index = index[keep]
 
                 index.detach_()
+
                 # redo forward to train hard examples only.
                 # select first cfg.TRAIN.OHEM_BATCH_SIZE rois for training.
                 index = index[:cfg.TRAIN.OHEM_BATCH_SIZE*batch_size]
