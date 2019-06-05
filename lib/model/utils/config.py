@@ -262,6 +262,17 @@ __C.MOBILENET.DEPTH_MULTIPLIER = 1.
 #      Siamese RPN      #
 #########################
 __C.SIAMESE = edict()
+# Proposal parameters.
+__C.TRAIN.SIAMESE_RPN_PRE_NMS_TOP_N =12000
+__C.TRAIN.SIAMESE_RPN_POST_NMS_TOP_N =2000
+__C.TRAIN.SIAMESE_RPN_NMS_THRESH =0.7
+__C.TRAIN.SIAMESE_RPN_MIN_SIZE =8
+
+__C.TEST.SIAMESE_RPN_PRE_NMS_TOP_N =6000
+__C.TEST.SIAMESE_RPN_POST_NMS_TOP_N =300
+__C.TEST.SIAMESE_RPN_NMS_THRESH =0.7
+__C.TEST.SIAMESE_RPN_MIN_SIZE =16
+
 # Template selection threshold.
 __C.SIAMESE.TEMPLATE_SEL_FG_THRESH = 0.7
 __C.SIAMESE.TEMPLATE_SEL_BG_THRESH_LO = 0.0
@@ -270,23 +281,35 @@ __C.SIAMESE.TEMPLATE_SEL_BATCH_SIZE = 64
 # Threshold used to select class template.
 __C.SIAMESE.TEMPLATE_SEL_CLS_THRESH = 0.8
 # The weight kernel size of the template.
-__C.SIAMESE.TEMPLATE_SZ = 5
-
+__C.SIAMESE.TEMPLATE_SZ = 3
+# Channel number before correlation. 256 as default.
+__C.SIAMESE.NUM_CHANNELS_FOR_CORRELATION = 256
 # Other RPN parameters.
 __C.SIAMESE.RPN_BATCH_SIZE = 256
 __C.SIAMESE.RPN_NMS_THRESH = 0.7
 __C.SIAMESE.RPN_PRE_NMS_TOP_N = 100
 __C.SIAMESE.RPN_POST_NMS_TOP_N = 1
 # Proposal height and width both need to be greater than RPN_MIN_SIZE (at orig image scale)
-__C.SIAMESE.RPN_MIN_SIZE = 8
-__C.SIAMESE.RPN_POSITIVE_OVERLAP = 0.7
+__C.SIAMESE.RPN_POSITIVE_OVERLAP = 0.5
 # IOU < thresh: negative example
-__C.SIAMESE.RPN_NEGATIVE_OVERLAP = 0.3
+__C.SIAMESE.RPN_NEGATIVE_OVERLAP = 0.5
 # This should be 1.0. As we only have positive training samples.
 __C.SIAMESE.FG_FRACTION = 1.0
-# SIAMESE.CROP_TYPE can be one of ('roi_align',)
-__C.SIAMESE.CROP_TYPE = 'roi_align'
+# SIAMESE.CROP_TYPE can be one of ('roi_align','center_crop',)
+__C.SIAMESE.CROP_TYPE = 'center_crop'
+# SIAMESE DETECTION INFLUENCE WEIGHT. 1.0 means the same as the original weight.
+__C.SIAMESE.DET_WEIGHT = 1.0
+# SCORE THRESHOLD FOR TRACKING.
+__C.SIAMESE.THRESH_FOR_TRACKING = 0.8
 
+# Penalty control.
+# TODO this may need further tuning.
+__C.SIAMESE.HANNING_WINDOW_WEIGHT = 1.0
+# The hanning window size is of instance size*HANNING_WINDOW_SIZE_FACTOR.
+__C.SIAMESE.HANNING_WINDOW_SIZE_FACTOR = 0.5
+__C.SIAMESE.PANELTY_K = 0.4
+# Whether to use distance to penalize rpn box selection.
+__C.SIAMESE.USE_POS_PRIOR_FOR_SEL = True
 #
 # MISC
 #
