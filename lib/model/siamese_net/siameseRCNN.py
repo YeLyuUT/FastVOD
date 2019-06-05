@@ -23,6 +23,7 @@ class _siameseRCNN(nn.Module):
         # we only support cuda.
         self.siameseRPN_layer = self.siameseRPN_layer.cuda()
         self.RCNN = self.RCNN.cuda()
+        self.nms = trNMS()
 
     def forward(self, input):
         if self.training:
@@ -72,18 +73,26 @@ class _siameseRCNN(nn.Module):
             siam_scores = Variable(siam_scores)
             # NMS for siam rois.
             # TODO rois_tracking should be sliced.
-            sel_siam_rois, sel_siam_scores = trNMS(rois=rois_tracking[:, :4], rpn_rois=siam_rois, scores=siam_scores)
-            # Add labels.
+            #print('siam_rois:',siam_rois)
+            #print('siam_scores:',siam_scores)
+            sel_siam_rois, sel_siam_scores = self.nms(rois=rois_tracking[:, :4], rpn_rois=siam_rois, scores=siam_scores)
+            print('sel_siam_rois:', sel_siam_rois)
+            print('sel_siam_scores:', sel_siam_scores)
+            # Add batch indexes.
             batch_ids = sel_siam_rois.new_zeros((sel_siam_rois.size(0), 1))
             sel_siam_rois = torch.cat((batch_ids, sel_siam_rois), 1)
             tra_det_bbox_pred, tra_det_cls_prob, tra_det_cls_score = self.forward_RCNN(self.RCNN.base_feat_for_roi, sel_siam_rois)
+            #print('tra_det_bbox_pred:',tra_det_bbox_pred)
+            #print('tra_det_cls_prob:' ,tra_det_cls_prob)
+            #print('tra_det_cls_score:',tra_det_cls_score)
 
             merged_probs = self.probs_for_tracking(
                 fg_scores = sel_siam_scores,
-                track_cls_probs = rois_tracking[4:],
+                track_cls_probs = rois_tracking[:, 4:],
                 tra_det_cls_probs = tra_det_cls_prob)
             siam_bbox_pred = tra_det_bbox_pred
             siam_cls_prob = merged_probs
+            siam_rois = sel_siam_rois
         else:
             siam_rois, siam_bbox_pred, siam_cls_prob, loss_cls, loss_box = None, None, None, 0, 0
 
