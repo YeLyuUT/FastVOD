@@ -48,8 +48,8 @@ class trNMS(nn.Module):
         #for a,b,c in zip(scores[:,:,1].view(-1,1), penalty_score.view(-1,1), hanning_score.view(-1,1)):
         #    print(a,',',b,',',c)
         # TODO change back.
-        penalty_window = scores[:,:,1]+penalty_score+hanning_score*cfg.SIAMESE.HANNING_WINDOW_WEIGHT
-        #penalty_window = scores[:,:,1]
+        #penalty_window = scores[:,:,1]+penalty_score+hanning_score*cfg.SIAMESE.HANNING_WINDOW_WEIGHT
+        penalty_window = scores[:,:,1]
         # inds should be of size N.
         inds = penalty_window.argmax(dim=1)
 
