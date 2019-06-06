@@ -53,6 +53,7 @@ class weight_crop_layer(nn.Module):
         '''
         if cfg.SIAMESE.CROP_TYPE == 'roi_align':
             cropped_feat = self.crop_kernel(feats, rois)
+            out = cropped_feat
             #out = self.spatial_shrinkage_layer(cropped_feat)
         elif cfg.SIAMESE.CROP_TYPE == 'center_crop':
             rois_cntr_x = (rois[:,1]+rois[:,3])/2.0
