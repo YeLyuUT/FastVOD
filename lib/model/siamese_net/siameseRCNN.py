@@ -8,6 +8,7 @@ from model.siamese_net.siameseRPN import siameseRPN
 from model.utils.config import cfg
 from model.siamese_net.nms_tracking import trNMS
 from torch.autograd import Variable
+from random import shuffle
 
 class _siameseRCNN(nn.Module):
     def __init__(self, classes, args):
@@ -148,6 +149,9 @@ class _siameseRCNN(nn.Module):
         tracking_losses_cls_ls = []
         tracking_losses_box_ls = []
         rtv_training_tuples = self.t_t_prop_layer(conv4_feat_1, conv4_feat_2, rpn_rois_1, gt_boxes_1, gt_boxes_2)
+        # For memory issue, we randomly sample tuples for training.
+        shuffle(rtv_training_tuples)
+        rtv_training_tuples = rtv_training_tuples[:cfg.TRAIN.SIAMESE_MAX_TRACKING_OBJ]
         for tpl_id in range(len(rtv_training_tuples)):
             target_feat, template_weights, target_gt_boxes = rtv_training_tuples[tpl_id]
             input_v = (target_feat,

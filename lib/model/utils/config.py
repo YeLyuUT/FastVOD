@@ -267,6 +267,8 @@ __C.TRAIN.SIAMESE_RPN_PRE_NMS_TOP_N =12000
 __C.TRAIN.SIAMESE_RPN_POST_NMS_TOP_N =2000
 __C.TRAIN.SIAMESE_RPN_NMS_THRESH =0.7
 __C.TRAIN.SIAMESE_RPN_MIN_SIZE =8
+# Max number of objects for tracking training.
+__C.TRAIN.SIAMESE_MAX_TRACKING_OBJ = 5
 
 __C.TEST.SIAMESE_RPN_PRE_NMS_TOP_N =6000
 __C.TEST.SIAMESE_RPN_POST_NMS_TOP_N =300
@@ -290,9 +292,9 @@ __C.SIAMESE.RPN_NMS_THRESH = 0.7
 __C.SIAMESE.RPN_PRE_NMS_TOP_N = 100
 __C.SIAMESE.RPN_POST_NMS_TOP_N = 1
 # Proposal height and width both need to be greater than RPN_MIN_SIZE (at orig image scale)
-__C.SIAMESE.RPN_POSITIVE_OVERLAP = 0.5
+__C.SIAMESE.RPN_POSITIVE_OVERLAP = 0.6
 # IOU < thresh: negative example
-__C.SIAMESE.RPN_NEGATIVE_OVERLAP = 0.5
+__C.SIAMESE.RPN_NEGATIVE_OVERLAP = 0.4
 # This should be 1.0. As we only have positive training samples.
 __C.SIAMESE.FG_FRACTION = 1.0
 # SIAMESE.CROP_TYPE can be one of ('roi_align','center_crop',)
