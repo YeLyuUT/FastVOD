@@ -2,9 +2,9 @@
 
 # CUDA_PATH=/usr/local/cuda/
 
-export CUDA_PATH=/usr/local/cuda/
+#export CUDA_PATH=/usr/local/cuda/
 #You may also want to ad the following
-#export C_INCLUDE_PATH=/opt/cuda/include
+export C_INCLUDE_PATH=/home/lvye/local/cuda-9.0/include
 
 export CXXFLAGS="-std=c++11"
 export CFLAGS="-std=c99"
