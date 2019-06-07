@@ -5,10 +5,13 @@ from torch.autograd import Variable
 from model.faster_rcnn.faster_rcnn import _fasterRCNN
 from model.siamese_net.template_target_proposal_layer import _TemplateTargetProposalLayer
 from model.siamese_net.siameseRPN import siameseRPN
+#from model.siamese_net.siameseRPN_one_branch import siameseRPN_one_branch as siameseRPN
 from model.utils.config import cfg
 from model.siamese_net.nms_tracking import trNMS
 from torch.autograd import Variable
 from random import shuffle
+
+from model.faster_rcnn.resnet import BasicBlock as block
 
 class _siameseRCNN(nn.Module):
     def __init__(self, classes, args):
@@ -18,13 +21,22 @@ class _siameseRCNN(nn.Module):
         self.siameseRPN_layer = siameseRPN( input_dim = 1024,
                                             anchor_scales = cfg.ANCHOR_SCALES,
                                             anchor_ratios = cfg.ANCHOR_RATIOS,
-                                            use_separable_correlation = True)
+                                            use_separable_correlation = False)
         self.RCNN.create_architecture()
 
+        # Tracking feature branch.
+        self.track_feat_trans = self._make_layer(block, 1024, 1024, 1, stride=1)
         # we only support cuda.
         self.siameseRPN_layer = self.siameseRPN_layer.cuda()
         self.RCNN = self.RCNN.cuda()
         self.nms = trNMS()
+
+    def _make_layer(self, block, inplanes, planes, blocks, stride=1):
+        layers = []
+        layers.append(block(inplanes, planes, stride, None))
+        for i in range(1, blocks):
+            layers.append(block(inplanes, planes))
+        return nn.Sequential(*layers)
 
     def forward(self, input):
         if self.training:
@@ -64,7 +76,7 @@ class _siameseRCNN(nn.Module):
         if rois_tracking is not None:
             # Tracking part.
             #target_feat, template_weights, target_gt_boxes = None
-            target_feat = self.RCNN.Conv4_feat
+            target_feat = self.track_feat_trans(self.RCNN.Conv_feat_track)
             target_gt_boxes = None
             input_v = (target_feat,
                        im_info,
@@ -107,8 +119,15 @@ class _siameseRCNN(nn.Module):
         :param det_cls_probs: size (N, 31)
         :return:
         '''
-        mult_scores = fg_scores.repeat(fg_scores.size(0), track_cls_probs.size(1))
+        #print('fg_scores:',fg_scores.shape)
+        #print('track_cls_probs:',track_cls_probs.shape)
+        #print('tra_det_cls_probs:',tra_det_cls_probs.shape)
+        #print('fg_scores:',fg_scores)
+        mult_scores = fg_scores.repeat(1, track_cls_probs.size(1))
+        #print('mult_scores:', mult_scores)
         sum_prob = track_cls_probs[:,1:].sum(dim=1, keepdim=True)+1e-5
+        #print('mult_scores:', mult_scores.shape)
+        #print('sum_prob:', sum_prob.shape)
         mult_scores[:, 1:] = mult_scores[:, 1:]*track_cls_probs[:,1:]/sum_prob
         mult_scores[:, 0] = 1.0-mult_scores[:, 0]
 
@@ -129,7 +148,7 @@ class _siameseRCNN(nn.Module):
         rois_label_1 = self.RCNN(im_data_1, im_info_1, gt_boxes_1[:,:,:5], num_boxes_1)
 
         # c3_1, c4_1, c5_1 = RCNN.c_3, RCNN.c_4, RCNN.c_5
-        conv4_feat_1 = self.RCNN.Conv4_feat
+        conv4_feat_1 = self.track_feat_trans(self.RCNN.Conv_feat_track)
         rpn_rois_1 = self.RCNN.rpn_rois
 
         # detection loss for image 2.
@@ -139,7 +158,7 @@ class _siameseRCNN(nn.Module):
         rois_label_2 = self.RCNN(im_data_2, im_info_2, gt_boxes_2[:,:,:5], num_boxes_2)
 
         # c3_2, c4_2, c5_2 = RCNN.c_3, RCNN.c_4, RCNN.c_5
-        conv4_feat_2 = self.RCNN.Conv4_feat
+        conv4_feat_2 = self.track_feat_trans(self.RCNN.Conv_feat_track)
         rpn_rois_2 = self.RCNN.rpn_rois
 
         ##################################
@@ -149,6 +168,7 @@ class _siameseRCNN(nn.Module):
         tracking_losses_cls_ls = []
         tracking_losses_box_ls = []
         rtv_training_tuples = self.t_t_prop_layer(conv4_feat_1, conv4_feat_2, rpn_rois_1, gt_boxes_1, gt_boxes_2)
+        # TODO uncomment below.
         # For memory issue, we randomly sample tuples for training.
         shuffle(rtv_training_tuples)
         rtv_training_tuples = rtv_training_tuples[:cfg.TRAIN.SIAMESE_MAX_TRACKING_OBJ]

@@ -8,49 +8,37 @@ import numpy as np
 from model.utils.config import cfg
 #from model.rpn.proposal_layer import _ProposalLayer
 from model.siamese_net.siam_proposal_layer import _SiamProposalLayer
-#from model.rpn.anchor_target_layer import _AnchorTargetLayer
-from model.siamese_net.siamese_anchor_target_layer import _SiamAnchorTargetLayer as _AnchorTargetLayer
+from model.rpn.anchor_target_layer import _AnchorTargetLayer
 from model.utils.net_utils import _smooth_l1_loss
 
 
-class siameseRPN(nn.Module):
+class siameseRPN_one_branch(nn.Module):
     def __init__(self, input_dim, anchor_scales, anchor_ratios, use_separable_correlation=False):
-        super(siameseRPN, self).__init__()
+        super(siameseRPN_one_branch, self).__init__()
         self.use_separable_correlation = use_separable_correlation
         self.din = input_dim  # get depth of input feature map, e.g., 1024.
         self.correlation_channel = cfg.SIAMESE.NUM_CHANNELS_FOR_CORRELATION
         self.anchor_scales = anchor_scales
         self.anchor_ratios = anchor_ratios
+        # TODO add expand_factor to cfg.
+        self.expand_factor = 64
 
         # TODO this may be modified if used for other strides.
         self.feat_stride = cfg.FEAT_STRIDE[0]
 
         # target branch.
-        self.RPN_Conv_bbox = nn.Conv2d(self.din, self.correlation_channel, 1, 1, 0, bias=True)
-        self.RPN_Conv_cls = nn.Conv2d(self.din, self.correlation_channel, 1, 1, 0, bias=True)
-        '''self.RPN_Conv_bbox = nn.Sequential(
-            nn.Conv2d(self.din, self.correlation_channel, 1,1,0, bias=False),
-            nn.BatchNorm2d(self.correlation_channel),)
-            #nn.ReLU(inplace=True))
-        self.RPN_Conv_cls = nn.Sequential(
-            nn.Conv2d(self.din, self.correlation_channel, 1,1,0, bias=False),
-            nn.BatchNorm2d(self.correlation_channel),)
-            #nn.ReLU(inplace=True))'''
+        self.RPN_Conv_target = nn.Conv2d(self.din, self.correlation_channel, 3, 1, 1, bias=True)
+        self.target_BN = nn.BatchNorm2d(self.correlation_channel)
         # template branch.
+        self.RPN_Conv_template = nn.Conv2d(self.din, self.correlation_channel*self.expand_factor, 3, 1, 1, bias=True)
+
+        # prediction branch.
         self.nc_score_out = len(self.anchor_scales) * len(self.anchor_ratios) * 2  # 2(bg/fg) * 9 (anchors)
-        self.RPN_cls_score = nn.Conv2d(self.din, self.correlation_channel * self.nc_score_out, 1, 1, 0, bias=True)
-        '''self.RPN_cls_score = nn.Sequential(
-            nn.Conv2d(self.din, self.correlation_channel * self.nc_score_out, 1, 1, 0, bias=False),
-            nn.BatchNorm2d(self.correlation_channel * self.nc_score_out),)
-            #nn.ReLU(inplace=True))'''
+        self.RPN_cls_score = nn.Conv2d(self.expand_factor, self.nc_score_out, 1, 1, 0)
         # define anchor box offset prediction layer
         self.nc_bbox_out = len(self.anchor_scales) * len(self.anchor_ratios) * 4  # 4(coords) * 9 (anchors)
-        self.RPN_bbox_pred = nn.Conv2d(self.din, self.correlation_channel * self.nc_bbox_out, 1, 1, 0, bias=True)
-        self.RPN_bbox_adjust = nn.Conv2d(self.nc_bbox_out, self.nc_bbox_out, 1, 1, 0, bias=True)
-        '''self.RPN_bbox_pred = nn.Sequential(
-            nn.Conv2d(self.din, self.correlation_channel * self.nc_bbox_out, 1, 1, 0, bias=False),
-            nn.BatchNorm2d(self.correlation_channel * self.nc_bbox_out),)
-            #nn.ReLU(inplace=True))'''
+        self.RPN_bbox_pred = nn.Conv2d(self.expand_factor, self.nc_bbox_out, 1, 1, 0)
+
         # define proposal layer
         self.RPN_proposal = _SiamProposalLayer(self.feat_stride, self.anchor_scales, self.anchor_ratios)
 
@@ -67,8 +55,7 @@ class siameseRPN(nn.Module):
             self.conv_merge_1x1_cls = nn.Conv2d(self.correlation_channel, 1, 1, bias=False)
             self.conv_merge_1x1_box = nn.Conv2d(self.correlation_channel, 1, 1, bias=False)
 
-        self.bias_cls = None#nn.Parameter(torch.zeros(self.nc_score_out, 1, 1), requires_grad=True)
-        self.bias_bbox = True#nn.Parameter(torch.zeros(self.nc_bbox_out, 1, 1), requires_grad=True)
+        self.bias = nn.Parameter(torch.zeros(self.expand_factor, 1, 1), requires_grad=True)
 
         self._init_weights()
 
@@ -85,36 +72,15 @@ class siameseRPN(nn.Module):
                 if m.bias is not None:
                     m.bias.data.zero_()
 
-        normal_init(self.RPN_bbox_adjust, 0, 0.01, cfg.TRAIN.TRUNCATED)
-        normal_init(self.RPN_Conv_cls, 0, 0.01, cfg.TRAIN.TRUNCATED)
-        normal_init(self.RPN_Conv_bbox, 0, 0.01, cfg.TRAIN.TRUNCATED)
-        #normal_init(self.RPN_cls_score, 0, 0.01, cfg.TRAIN.TRUNCATED)
-        #normal_init(self.RPN_bbox_pred, 0, 0.001, cfg.TRAIN.TRUNCATED)
-        self._init_score_w_accord_to_target_w(self.nc_score_out, self.RPN_Conv_cls.weight, self.RPN_cls_score.weight)
-        self._init_template_w_accord_to_target_w(self.nc_bbox_out, self.RPN_Conv_bbox.weight, self.RPN_bbox_pred.weight)
+        normal_init(self.RPN_Conv_target, 0, 0.01, cfg.TRAIN.TRUNCATED)
+        normal_init(self.RPN_Conv_template, 0, 0.01, cfg.TRAIN.TRUNCATED)
+        normal_init(self.RPN_cls_score, 0, 0.01, cfg.TRAIN.TRUNCATED)
+        normal_init(self.RPN_bbox_pred, 0, 0.001, cfg.TRAIN.TRUNCATED)
 
         if self.conv_merge_1x1_cls is not None:
             normal_init(self.conv_merge_1x1_cls, 0, 0.01, cfg.TRAIN.TRUNCATED)
         if self.conv_merge_1x1_box is not None:
             normal_init(self.conv_merge_1x1_box, 0, 0.01, cfg.TRAIN.TRUNCATED)
-
-    def _init_score_w_accord_to_target_w(self, n_rep, w_tar, w_tem):
-        ori_sz = w_tem.size()
-        w_tem = w_tem.view(n_rep, -1, w_tem.size(1), w_tem.size(2), w_tem.size(3))
-        for i in range(n_rep/2):
-            w_tem.data[i, :, :, :, :] = - w_tar.data
-        for i in range(n_rep/2, n_rep):
-            w_tem.data[i, :, :, :, :] =   w_tar.data
-        w_tem = w_tem.view(ori_sz)
-        return w_tem
-
-    def _init_template_w_accord_to_target_w(self, n_rep, w_tar, w_tem):
-        ori_sz = w_tem.size()
-        w_tem = w_tem.view(n_rep,-1,w_tem.size(1),w_tem.size(2),w_tem.size(3))
-        for i in range(n_rep):
-            w_tem.data[i,:,:,:,:] = w_tar.data
-        w_tem = w_tem.view(ori_sz)
-        return w_tem
 
     @staticmethod
     def reshape(x, d):
@@ -144,7 +110,7 @@ class siameseRPN(nn.Module):
         H = target_feat.size(2)
         W = target_feat.size(3)
 
-        out = nn.functional.conv2d(
+        out = 0.1*nn.functional.conv2d(
             target_feat,
             template_feat,
             bias=None,
@@ -176,7 +142,7 @@ class siameseRPN(nn.Module):
         H = target_feat.size(2)
         W = target_feat.size(3)
 
-        out = nn.functional.conv2d(
+        out = 0.1*nn.functional.conv2d(
             target_feat,
             template_feat,
             bias=None,
@@ -209,7 +175,7 @@ class siameseRPN(nn.Module):
         H = target_feat.size(2)
         W = target_feat.size(3)
 
-        out = nn.functional.conv2d(
+        out = 0.1*nn.functional.conv2d(
             target_feat,
             template_feat,
             bias=None,
@@ -244,35 +210,27 @@ class siameseRPN(nn.Module):
         nC = template_feat.size(1)
         kh = template_feat.size(2)
         kw = template_feat.size(3)
-        assert self.din == nC, 'The feature dims are not compatible.{}!={}'.format(self.din, nC)
+        assert self.din == nC, 'The feature dims are not compatible.'
         assert nC == target_feat.size(1), 'The feature dims of template_feat and target_feat should be same.'
         assert target_feat.size(0) == 1, 'Input target_feat should have a batch size of 1.'
 
         # target branch.
-        target_feat_cls = self.RPN_Conv_cls(target_feat)
-        target_feat_bbox = self.RPN_Conv_bbox(target_feat)
-
+        target_feat = self.RPN_Conv_target(target_feat)
+        target_feat = self.target_BN(target_feat)
         # template branch.
-        template_feat_cls = self.RPN_cls_score(template_feat)
-        template_feat_bbox = self.RPN_bbox_pred(template_feat)
+        template_feat = self.RPN_Conv_template(template_feat)
 
-        template_feat_cls = template_feat_cls.view(n_templates, self.nc_score_out, -1, template_feat_cls.size(2),
-                                                   template_feat_cls.size(3))
-        template_feat_bbox = template_feat_bbox.view(n_templates, self.nc_bbox_out, -1, template_feat_bbox.size(2),
-                                                     template_feat_bbox.size(3))
+        template_feat = template_feat.view(n_templates, self.expand_factor, -1, template_feat.size(2),
+                                                   template_feat.size(3))
 
         # correlation
         if self.use_separable_correlation:
-            rpn_cls_score = self.depth_wise_cross_correlation_cls(target_feat_cls, template_feat_cls, self.bias_cls)
-            rpn_bbox_pred = self.depth_wise_cross_correlation_box(target_feat_bbox, template_feat_bbox, self.bias_bbox)
+            rpn_feat = self.depth_wise_cross_correlation_cls(target_feat, template_feat, self.bias)
         else:
-            rpn_cls_score = self.cross_correlation(target_feat_cls, template_feat_cls, self.bias_cls)
-            rpn_bbox_pred = self.cross_correlation(target_feat_bbox, template_feat_bbox, self.bias_bbox)
+            rpn_feat = self.cross_correlation(target_feat, template_feat, self.bias)
 
-        rpn_cls_score = rpn_cls_score*0.1
-        rpn_bbox_pred = rpn_bbox_pred*0.1
-        # adjust
-        rpn_bbox_pred = self.RPN_bbox_adjust(rpn_bbox_pred)
+        rpn_cls_score = self.RPN_cls_score(rpn_feat)
+        rpn_bbox_pred = self.RPN_bbox_pred(rpn_feat)
 
         rpn_cls_score_reshape = self.reshape(rpn_cls_score, 2)
         rpn_cls_prob_reshape = F.softmax(rpn_cls_score_reshape, 1)
@@ -303,7 +261,6 @@ class siameseRPN(nn.Module):
             rpn_cls_score = torch.index_select(rpn_cls_score.view(-1, 2), 0, rpn_keep)
             rpn_label = torch.index_select(rpn_label.view(-1), 0, rpn_keep.data)
             rpn_label = Variable(rpn_label.long())
-
             self.rpn_loss_cls = F.cross_entropy(rpn_cls_score, rpn_label)
             fg_cnt = torch.sum(rpn_label.data.ne(0))
 
