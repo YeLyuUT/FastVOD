@@ -109,7 +109,7 @@ def bbox_delta_to_pred_boxes(im_info, boxes, bbox_pred):
     pred_boxes = clip_boxes(pred_boxes, im_info.data, 1)
     return pred_boxes
 
-weight_cropper = weight_crop_layer(spatial_scale = 1.0 / 16.0).cuda()
+weight_cropper = weight_crop_layer().cuda()
 def siam_weights_preparation(rois_tracking, base_feat):
     if rois_tracking is None:
         return None, None
@@ -121,16 +121,17 @@ def siam_weights_preparation(rois_tracking, base_feat):
         template_weights = weight_cropper(base_feat, boxes)
         return template_weights, rois_tracking
 
-def prepare_rois_tracking(all_boxes, all_boxes_scores, frame_id, class_num, thresh=cfg.SIAMESE.THRESH_FOR_TRACKING):
+def prepare_rois_tracking(im_info, all_boxes, all_boxes_scores, frame_id, class_num, thresh=cfg.SIAMESE.THRESH_FOR_TRACKING):
     # class_num is 31 for imagenetVID.
     sel_boxes = []
     for j in range(1, class_num):
+        if len(all_boxes[j][frame_id]) == 0:
+            continue
         scored_boxes = all_boxes[j][frame_id]
         scores = all_boxes_scores[j][frame_id]
         assert len(scored_boxes)==len(scores), 'length of scored_boxes and length of scores should be the equal.'
         # TODO comment out the following for loop to accelerate predictions.
-        if len(scored_boxes) == 0:
-            continue
+        scored_boxes[:, :4] = scored_boxes[:, :4] * im_info[-1]
         for b_id in range(len(scored_boxes)):
             assert scored_boxes[b_id, 4] == scores[b_id, j], 'scores not matched, please check your code.'
         inds = np.where(scored_boxes[:, 4]>thresh)[0]
@@ -387,7 +388,7 @@ if __name__ == '__main__':
       ########
       # First, convert all_boxes to rois_tracking.#
       rois_tracking = prepare_rois_tracking(all_boxes, all_boxes_scores, frame_id=i, class_num=imdb.num_classes, thresh=cfg.SIAMESE.THRESH_FOR_TRACKING)
-      base_feat = RCNN.RCNN.Conv4_feat
+      base_feat = RCNN.track_feat_trans(RCNN.RCNN.Conv_feat_track)
       template_weights, rois_tracking = siam_weights_preparation(rois_tracking, base_feat)
 
       misc_toc = time.time()
