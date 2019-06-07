@@ -32,8 +32,8 @@ class trNMS(nn.Module):
         window_sz = s*cfg.SIAMESE.HANNING_WINDOW_SIZE_FACTOR
         dist = ((x-x_).pow(2)+(y-y_).pow(2)).sqrt()
         hanning_score = 0.5+0.5*((dist*3.141592653589793/window_sz).cos())
-        print('dist:',dist)
-        print('hanning_score:',hanning_score)
+        #print('dist:',dist)
+        #print('hanning_score:',hanning_score)
         hn_sz = hanning_score.size()
         hanning_score = hanning_score.view(-1)
 
@@ -50,6 +50,8 @@ class trNMS(nn.Module):
         # TODO change back.
         #penalty_window = scores[:,:,1]+penalty_score+hanning_score*cfg.SIAMESE.HANNING_WINDOW_WEIGHT
         penalty_window = scores[:,:,1]
+        #penalty_window = hanning_score
+        #penalty_window = penalty_score
         # inds should be of size N.
         inds = penalty_window.argmax(dim=1)
 
