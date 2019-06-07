@@ -61,7 +61,7 @@ __C.TRAIN.SUMMARY_INTERVAL = 180
 
 # Scale to use during training (can list multiple scales)
 # The scale is the pixel size of an image's shortest side
-__C.TRAIN.SCALES = (600,)
+__C.TRAIN.SCALES = (512,)
 
 # Max pixel size of the longest side of a scaled input image
 __C.TRAIN.MAX_SIZE = 1000
@@ -262,13 +262,19 @@ __C.MOBILENET.DEPTH_MULTIPLIER = 1.
 #      Siamese RPN      #
 #########################
 __C.SIAMESE = edict()
+
+# Anchor scales for RPN
+__C.SIAMESE.ANCHOR_SCALES = [8,16,32]
+# Anchor ratios for RPN
+__C.SIAMESE.ANCHOR_RATIOS = [0.5,1,2]
+
 # Proposal parameters.
 __C.TRAIN.SIAMESE_RPN_PRE_NMS_TOP_N =12000
 __C.TRAIN.SIAMESE_RPN_POST_NMS_TOP_N =2000
 __C.TRAIN.SIAMESE_RPN_NMS_THRESH =0.7
 __C.TRAIN.SIAMESE_RPN_MIN_SIZE =8
 # Max number of objects for tracking training.
-__C.TRAIN.SIAMESE_MAX_TRACKING_OBJ = 5
+__C.TRAIN.SIAMESE_MAX_TRACKING_OBJ = 4
 
 __C.TEST.SIAMESE_RPN_PRE_NMS_TOP_N =6000
 __C.TEST.SIAMESE_RPN_POST_NMS_TOP_N =300
@@ -289,15 +295,16 @@ __C.SIAMESE.NUM_CHANNELS_FOR_CORRELATION = 256
 # Other RPN parameters.
 __C.SIAMESE.RPN_BATCH_SIZE = 256
 __C.SIAMESE.RPN_NMS_THRESH = 0.7
-__C.SIAMESE.RPN_PRE_NMS_TOP_N = 100
-__C.SIAMESE.RPN_POST_NMS_TOP_N = 1
+#__C.SIAMESE.RPN_PRE_NMS_TOP_N = 100
+#__C.SIAMESE.RPN_POST_NMS_TOP_N = 20
 # Proposal height and width both need to be greater than RPN_MIN_SIZE (at orig image scale)
-__C.SIAMESE.RPN_POSITIVE_OVERLAP = 0.6
+__C.SIAMESE.RPN_POSITIVE_OVERLAP = 0.7
 # IOU < thresh: negative example
-__C.SIAMESE.RPN_NEGATIVE_OVERLAP = 0.4
+__C.SIAMESE.RPN_NEGATIVE_OVERLAP_HI = 0.5
+__C.SIAMESE.RPN_NEGATIVE_OVERLAP_LO = 0.01
 # This should be 1.0. As we only have positive training samples.
 __C.SIAMESE.FG_FRACTION = 1.0
-# SIAMESE.CROP_TYPE can be one of ('roi_align','center_crop',)
+# SIAMESE.CROP_TYPE can be one of ('roi_align','center_crop')
 __C.SIAMESE.CROP_TYPE = 'center_crop'
 # SIAMESE DETECTION INFLUENCE WEIGHT. 1.0 means the same as the original weight.
 __C.SIAMESE.DET_WEIGHT = 1.0
