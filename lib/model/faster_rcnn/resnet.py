@@ -42,6 +42,8 @@ class BasicBlock(nn.Module):
     self.bn2 = nn.BatchNorm2d(planes)
     self.downsample = downsample
     self.stride = stride
+    self.normal_init(self.conv1, 0, 0.01, cfg.TRAIN.TRUNCATED)
+    self.normal_init(self.conv2, 0, 0.01, cfg.TRAIN.TRUNCATED)
 
   def forward(self, x):
     residual = x
@@ -60,6 +62,18 @@ class BasicBlock(nn.Module):
     out = self.relu(out)
 
     return out
+
+  def normal_init(self, m, mean, stddev, truncated=False):
+    """
+    weight initalizer: truncated normal and random normal.
+    """
+    # x is a parameter
+    if truncated:
+      m.weight.data.normal_().fmod_(2).mul_(stddev).add_(mean)  # not a perfect approximation
+    else:
+      m.weight.data.normal_(mean, stddev)
+      if m.bias is not None:
+        m.bias.data.zero_()
 
 
 class Bottleneck(nn.Module):

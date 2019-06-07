@@ -76,7 +76,7 @@ class _fasterRCNN(resnet):
 
         self.grid_size = cfg.POOLING_SIZE * 2 if cfg.CROP_RESIZE_WITH_MAX_POOL else cfg.POOLING_SIZE
         self.RCNN_roi_crop = _RoICrop()
-        self.Conv4_feat = None
+        self.Conv_feat_track = None
         self.rpn_rois = None
 
         if cfg.RESNET.CORE_CHOICE.USE == cfg.RESNET.CORE_CHOICE.FASTER_RCNN:
@@ -139,7 +139,7 @@ class _fasterRCNN(resnet):
             normal_init(self.rfcn_bbox, 0, 0.001, cfg.TRAIN.TRUNCATED)
 
     def forward(self, im_data, im_info, gt_boxes, num_boxes):
-        self.Conv4_feat = None
+        self.Conv_feat_track = None
         self.rpn_rois = None
 
         batch_size = im_data.size(0)
@@ -159,7 +159,7 @@ class _fasterRCNN(resnet):
         base_feat = self.RCNN_base(im_data)
 
         # feed base feature map tp RPN to obtain rois
-        self.Conv4_feat = base_feat
+        self.Conv_feat_track = base_feat
         rois_rpn, rpn_loss_cls, rpn_loss_bbox = self.RCNN_rpn(base_feat, im_info, gt_boxes, num_boxes)
         self.rpn_rois = rois_rpn
         # if it is training phrase, then use ground truth bboxes for refinement.
@@ -182,6 +182,7 @@ class _fasterRCNN(resnet):
 
         # convert base feat to roi predictions.
         self.base_feat_for_roi = base_feat
+
         bbox_pred, cls_prob, cls_score = self.base_feat_to_roi_pred(base_feat, rois, rois_label)
 
         RCNN_loss_cls = 0
