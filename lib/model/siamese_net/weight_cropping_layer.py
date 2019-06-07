@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 from model.utils.config import cfg
-from model.roi_align.modules.roi_align import RoIAlignAvg
+from model.roi_align.modules.roi_align import RoIAlign
 from model.roi_crop.modules.roi_crop import _RoICrop
 from model.utils.net_utils import _affine_grid_gen
 
@@ -15,16 +15,12 @@ class weight_crop_layer(nn.Module):
         self.spatial_scale = spatial_scale
         if cfg.SIAMESE.CROP_TYPE=='roi_align':
             # TODO careful with the stride. If moved to other layer, it should be changed.
-            self.crop_kernel = RoIAlignAvg(cfg.SIAMESE.TEMPLATE_SZ, cfg.SIAMESE.TEMPLATE_SZ, spatial_scale)
+            self.crop_kernel = RoIAlign(cfg.SIAMESE.TEMPLATE_SZ, cfg.SIAMESE.TEMPLATE_SZ, spatial_scale)
             #self.spatial_shrinkage_layer = nn.Conv2d(din, din, kernel_size=cfg.SIAMESE.TEMPLATE_SZ, stride=cfg.SIAMESE.TEMPLATE_SZ,groups=din)
         elif cfg.SIAMESE.CROP_TYPE == 'center_crop':
-            # TODO clean the roi crop.
-            self.RCNN_roi_crop = _RoICrop()
-            self.grid_size = cfg.SIAMESE.TEMPLATE_SZ
-            ####
             self.h_sz = (cfg.SIAMESE.TEMPLATE_SZ - 1) / 2.0
             self.stride = 1.0 / spatial_scale
-            self.crop_kernel = RoIAlignAvg(cfg.SIAMESE.TEMPLATE_SZ, cfg.SIAMESE.TEMPLATE_SZ, spatial_scale)
+            self.crop_kernel = RoIAlign(cfg.SIAMESE.TEMPLATE_SZ, cfg.SIAMESE.TEMPLATE_SZ, spatial_scale)
         else:
             raise ValueError('Not implemented.')
         self._init_weights()
