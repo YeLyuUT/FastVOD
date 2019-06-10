@@ -25,7 +25,7 @@ class _siameseRCNN(nn.Module):
         self.RCNN.create_architecture()
 
         # Tracking feature branch.
-        self.track_feat_trans = self._make_layer(block, 1024, 1024, 1, stride=1)
+        self.track_feat_trans = self._make_layer(block, 1024, 1024, 1, stride=1).cuda()
         # we only support cuda.
         self.siameseRPN_layer = self.siameseRPN_layer.cuda()
         self.RCNN = self.RCNN.cuda()
@@ -168,7 +168,10 @@ class _siameseRCNN(nn.Module):
         tracking_losses_cls_ls = []
         tracking_losses_box_ls = []
         rtv_training_tuples = self.t_t_prop_layer(conv4_feat_1, conv4_feat_2, rpn_rois_1, gt_boxes_1, gt_boxes_2)
-        # TODO uncomment below.
+        rois = None
+        scores = None
+        siamRPN_loss_cls = None
+        siamRPN_loss_box = None
         # For memory issue, we randomly sample tuples for training.
         shuffle(rtv_training_tuples)
         rtv_training_tuples = rtv_training_tuples[:cfg.TRAIN.SIAMESE_MAX_TRACKING_OBJ]
@@ -180,8 +183,10 @@ class _siameseRCNN(nn.Module):
                        target_gt_boxes,
                        1)
             rois, scores, rpn_loss_cls_siam, rpn_loss_box_siam = self.siameseRPN_layer(input_v)
-            tracking_losses_cls_ls.append(rpn_loss_cls_siam)
-            tracking_losses_box_ls.append(rpn_loss_box_siam)
+            if rpn_loss_cls_siam is not None:
+                tracking_losses_cls_ls.append(rpn_loss_cls_siam)
+            if rpn_loss_box_siam is not None:
+                tracking_losses_box_ls.append(rpn_loss_box_siam)
 
         if len(tracking_losses_cls_ls) > 0:
             siamRPN_loss_cls = torch.mean(torch.stack(tracking_losses_cls_ls))
@@ -196,11 +201,5 @@ class _siameseRCNN(nn.Module):
         rpn_loss_box = (rpn_loss_box_1.mean() + rpn_loss_box_2.mean()) / 2
         RCNN_loss_cls = (RCNN_loss_cls_1.mean() + RCNN_loss_cls_2.mean()) / 2
         RCNN_loss_bbox = (RCNN_loss_bbox_1.mean() + RCNN_loss_bbox_2.mean()) / 2
-        rois_label = torch.cat((rois_label_1, rois_label_2),0)
+        rois_label = torch.cat((rois_label_1, rois_label_2), 0)
         return rois, scores, rois_label, siamRPN_loss_cls, siamRPN_loss_box, rpn_loss_cls, rpn_loss_box, RCNN_loss_cls, RCNN_loss_bbox
-
-
-
-
-
-
