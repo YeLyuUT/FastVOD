@@ -214,7 +214,6 @@ if __name__ == '__main__':
 
   # train set
   # -- Note: Use validation set and disable the flipped to enable faster loading.
-  cfg.TRAIN.USE_FLIPPED = True
   cfg.USE_GPU_NMS = args.cuda
   imdb, roidb, ratio_list, ratio_index = combined_roidb(args.imdb_name)
   train_size = len(roidb)
@@ -320,12 +319,11 @@ if __name__ == '__main__':
     from tensorboardX import SummaryWriter
     logger = SummaryWriter("logs")
 
+  # setting to train mode
+  RCNN.train()
   for epoch in range(args.start_epoch, args.max_epochs + 1):
-    # setting to train mode
-    RCNN.train()
     loss_temp = 0
     start = time.time()
-
     if args.lr_decay_step>0 and epoch % (args.lr_decay_step + 1) == 0:
         adjust_learning_rate(optimizer, args.lr_decay_gamma)
         lr *= args.lr_decay_gamma
