@@ -61,7 +61,7 @@ __C.TRAIN.SUMMARY_INTERVAL = 180
 
 # Scale to use during training (can list multiple scales)
 # The scale is the pixel size of an image's shortest side
-__C.TRAIN.SCALES = (512,)
+__C.TRAIN.SCALES = (600,)
 
 # Max pixel size of the longest side of a scaled input image
 __C.TRAIN.MAX_SIZE = 1000
@@ -274,17 +274,18 @@ __C.TRAIN.SIAMESE_RPN_POST_NMS_TOP_N =2000
 __C.TRAIN.SIAMESE_RPN_NMS_THRESH =0.7
 __C.TRAIN.SIAMESE_RPN_MIN_SIZE =8
 # Max number of objects for tracking training.
-__C.TRAIN.SIAMESE_MAX_TRACKING_OBJ = 4
+__C.TRAIN.SIAMESE_MAX_TRACKING_OBJ = 6
 
 __C.TEST.SIAMESE_RPN_PRE_NMS_TOP_N =6000
 __C.TEST.SIAMESE_RPN_POST_NMS_TOP_N =300
 __C.TEST.SIAMESE_RPN_NMS_THRESH =0.7
-__C.TEST.SIAMESE_RPN_MIN_SIZE =16
+__C.TEST.SIAMESE_RPN_MIN_SIZE =8
 
 # Template selection threshold.
-__C.SIAMESE.TEMPLATE_SEL_FG_THRESH = 0.7
-__C.SIAMESE.TEMPLATE_SEL_BG_THRESH_LO = 0.0
-__C.SIAMESE.TEMPLATE_SEL_BG_THRESH_HI = 0.3
+__C.SIAMESE.TEMPLATE_SEL_FG_THRESH = 0.6
+# We do not need negative examples. So TEMPLATE_SEL_BG_THRESH_LO==TEMPLATE_SEL_BG_THRESH_HI
+__C.SIAMESE.TEMPLATE_SEL_BG_THRESH_LO = 0.1
+__C.SIAMESE.TEMPLATE_SEL_BG_THRESH_HI = 0.1
 __C.SIAMESE.TEMPLATE_SEL_BATCH_SIZE = 64
 # Threshold used to select class template.
 __C.SIAMESE.TEMPLATE_SEL_CLS_THRESH = 0.8
@@ -298,9 +299,9 @@ __C.SIAMESE.RPN_NMS_THRESH = 0.7
 #__C.SIAMESE.RPN_PRE_NMS_TOP_N = 100
 #__C.SIAMESE.RPN_POST_NMS_TOP_N = 20
 # Proposal height and width both need to be greater than RPN_MIN_SIZE (at orig image scale)
-__C.SIAMESE.RPN_POSITIVE_OVERLAP = 0.7
-# IOU < thresh: negative example
-__C.SIAMESE.RPN_NEGATIVE_OVERLAP_HI = 0.5
+__C.SIAMESE.RPN_POSITIVE_OVERLAP = 0.6
+# Select training samples for siameseRPN loss. RPN_NEGATIVE_OVERLAP_LO < IOU < RPN_NEGATIVE_OVERLAP_HI: negative example
+__C.SIAMESE.RPN_NEGATIVE_OVERLAP_HI = 0.4
 __C.SIAMESE.RPN_NEGATIVE_OVERLAP_LO = 0.01
 # This should be 1.0. As we only have positive training samples.
 __C.SIAMESE.FG_FRACTION = 1.0
@@ -315,7 +316,7 @@ __C.SIAMESE.THRESH_FOR_TRACKING = 0.8
 # TODO this may need further tuning.
 __C.SIAMESE.HANNING_WINDOW_WEIGHT = 1.0
 # The hanning window size is of instance size*HANNING_WINDOW_SIZE_FACTOR.
-__C.SIAMESE.HANNING_WINDOW_SIZE_FACTOR = 0.5
+__C.SIAMESE.HANNING_WINDOW_SIZE_FACTOR = 0.6
 __C.SIAMESE.PANELTY_K = 0.4
 # Whether to use distance to penalize rpn box selection.
 __C.SIAMESE.USE_POS_PRIOR_FOR_SEL = True
