@@ -20,7 +20,12 @@ import torch
 from torch.autograd import Variable
 import torch.nn as nn
 import torch.optim as optim
-import pickle
+try:
+   import cPickle as pickle
+   print('import cPickle')
+except:
+   import pickle
+   print('import python pickle')
 from roi_data_layer.roidb import combined_roidb
 from roi_data_layer.roibatchLoader import roibatchLoader
 from model.utils.config import cfg, cfg_from_file, cfg_from_list, get_output_dir
@@ -125,10 +130,6 @@ if __name__ == '__main__':
       args.imdb_name = 'imagenetDETVID_train'
       args.imdbval_name = 'imagenetDETVID_val'
       args.set_cfgs = ['ANCHOR_SCALES', '[4, 8, 16, 32]', 'ANCHOR_RATIOS', '[0.5,1,2]', 'MAX_NUM_GT_BOXES', '30']
-  elif args.dataset == "vg":
-      args.imdb_name = "vg_150-50-50_minitrain"
-      args.imdbval_name = "vg_150-50-50_minival"
-      args.set_cfgs = ['ANCHOR_SCALES', '[4, 8, 16, 32]', 'ANCHOR_RATIOS', '[0.5,1,2]']
 
   if args.cfg_file is None:
     args.cfg_file = "cfgs/{}_ls.yml".format(args.net) if args.large_scale else "cfgs/{}.yml".format(args.net)
@@ -162,8 +163,11 @@ if __name__ == '__main__':
     raise Exception('There is no input directory for loading network from ' + input_dir)
 
   #print('cfg.RESNET.CORE_CHOICE.USE:',cfg.RESNET.CORE_CHOICE.USE)
+  load_name_predix = cfg.RESNET.CORE_CHOICE.USE
+  if cfg.TRAIN.OHEM is True:
+      load_name_predix = load_name_predix+'_OHEM'
   load_name = os.path.join(input_dir,
-    cfg.RESNET.CORE_CHOICE.USE+'_{}_{}_{}.pth'.format(args.checksession, args.checkepoch, args.checkpoint))
+    load_name_predix+'_{}_{}_{}.pth'.format(args.checksession, args.checkepoch, args.checkpoint))
 
   # initilize the network here.
   if args.net == 'res101':
@@ -222,7 +226,7 @@ if __name__ == '__main__':
     thresh = 0.0
 
   #save_name = 'light_head_rcnn_10'
-  save_name = cfg.RESNET.CORE_CHOICE.USE
+  save_name = load_name_predix
   num_images = len(imdb.image_index)
   all_boxes = [[[] for _ in xrange(num_images)]
                for _ in xrange(imdb.num_classes)]
