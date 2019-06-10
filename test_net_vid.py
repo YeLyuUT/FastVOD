@@ -20,7 +20,12 @@ import torch
 from torch.autograd import Variable
 import torch.nn as nn
 import torch.optim as optim
-import pickle
+try:
+   import cPickle as pickle
+   print('import cPickle')
+except:
+   import pickle
+   print('import python pickle')
 from roi_data_layer.roidb import combined_roidb
 from roi_data_layer.roibatchLoader import roibatchLoader
 from model.utils.config import cfg, cfg_from_file, cfg_from_list, get_output_dir
