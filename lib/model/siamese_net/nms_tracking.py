@@ -3,8 +3,14 @@ from torch import nn
 from model.utils.config import cfg
 
 class trNMS(nn.Module):
-    def __init__(self):
+    def __init__(self,
+            PANELTY_K = cfg.SIAMESE.PANELTY_K,
+            HANNING_WINDOW_WEIGHT = cfg.SIAMESE.HANNING_WINDOW_WEIGHT,
+            HANNING_WINDOW_SIZE_FACTOR = cfg.SIAMESE.HANNING_WINDOW_SIZE_FACTOR):
         super(trNMS, self).__init__()
+        self.PANELTY_K = PANELTY_K
+        self.HANNING_WINDOW_WEIGHT = HANNING_WINDOW_WEIGHT
+        self.HANNING_WINDOW_SIZE_FACTOR = HANNING_WINDOW_SIZE_FACTOR
 
     def forward(self, rois, rpn_rois, scores):
         return self.nms(rois, rpn_rois, scores)
@@ -19,17 +25,14 @@ class trNMS(nn.Module):
         '''
         rois = rois.unsqueeze(1) # expand dims to (N,1,4).
         x,y,w,h,s,r = self.get_rois_vals(rois)
-        x_,y_,w_,h_,s_,r_ = self.get_rois_vals(rpn_rois)
-        hn_w = cfg.SIAMESE.HANNING_WINDOW_WEIGHT
-        hn_sf = cfg.SIAMESE.HANNING_WINDOW_SIZE_FACTOR
-        hn_pk = cfg.SIAMESE.PANELTY_K
+        x_,y_,w_,h_,s_,r_ = self.get_rois_vals(rpn_rois[:,:,1:5])
         sz = s.size()
 
         s_max = torch.max(s/s_, s_/s)
         r_max = torch.max(r, 1.0/r)
-        penalty_score = ((-cfg.SIAMESE.PANELTY_K)*(s_max*r_max-1.0)).exp()
+        penalty_score = ((-self.PANELTY_K)*(s_max*r_max-1.0)).exp()
 
-        window_sz = s*cfg.SIAMESE.HANNING_WINDOW_SIZE_FACTOR
+        window_sz = s*self.HANNING_WINDOW_SIZE_FACTOR
         dist = ((x-x_).pow(2)+(y-y_).pow(2)).sqrt()
         hanning_score = 0.5+0.5*((dist*3.141592653589793/window_sz).cos())
         #print('dist:',dist)
@@ -48,8 +51,8 @@ class trNMS(nn.Module):
         #for a,b,c in zip(scores[:,:,1].view(-1,1), penalty_score.view(-1,1), hanning_score.view(-1,1)):
         #    print(a,',',b,',',c)
         # TODO change back.
-        #penalty_window = scores[:,:,1]+penalty_score+hanning_score*cfg.SIAMESE.HANNING_WINDOW_WEIGHT
-        penalty_window = scores[:,:,1]
+        penalty_window = scores[:,:,1]+hanning_score*self.HANNING_WINDOW_WEIGHT#+penalty_score
+        #penalty_window = scores[:,:,1]
         #penalty_window = hanning_score
         #penalty_window = penalty_score
         # inds should be of size N.
