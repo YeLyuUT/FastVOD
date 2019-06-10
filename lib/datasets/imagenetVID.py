@@ -47,7 +47,7 @@ class imagenetVID(imdb):
 
         self._image_ext = ['.JPEG']
 
-        # structured_indexes hold indexes in structure of [cat..[vid..[imgs]]]
+        # structured_indexes hold indexes in structure of [cat..[vid..[imgs]]] for training, [vid..[imgs]] for testing.
         self._image_index, self._structured_indexes = self._load_image_set_index()
 
         # Default to roidb handler
@@ -169,6 +169,7 @@ class imagenetVID(imdb):
 
             # list hold all video image indexes.
             image_indexes = []
+            # [cat,...[vid,...[index...]]]
             structured_indexes = []
             idx_counter = 0
             for vid_idx in vid_indexes:
@@ -192,14 +193,32 @@ class imagenetVID(imdb):
                 pickle.dump((image_indexes, structured_indexes), f, pickle.HIGHEST_PROTOCOL)
             return image_indexes, structured_indexes
         else:
-            image_set_file = os.path.join(self._data_path, 'ImageSets', 'VID', 'val.txt')
-            vid_index = []
-            with open(image_set_file) as f:
+            vid_set_file = os.path.join(self._data_path, 'ImageSets', 'VID', 'val.txt')
+            assert os.path.exists(vid_set_file), vid_set_file + ' does not exist.'
+            image_indexes = []
+            # [vid,...[index...]]
+            structured_indexes = []
+            last_dir = None
+            tmp_holder = None
+            i = 0
+            with open(vid_set_file, 'r') as f:
                 for x in f.readlines():
                     line = x.strip().split(' ')
-                    vid_index.append(self._data_path + '/Data/VID/val/' + line[0])
-            return vid_index
+                    dir_name = os.path.dirname(line[0])
+                    if dir_name != last_dir:
+                        if tmp_holder is not None:
+                            structured_indexes.append(tmp_holder)
+                        tmp_holder = []
+                        last_dir = dir_name
+                    image_indexes.append(self._data_path + '/Data/VID/val/' + line[0])
+                    tmp_holder.append(i)
+                    i += 1
+                # Add the last vid.
+                structured_indexes.append(tmp_holder)
 
+            print('Total number of videos are: %d.' % (len(structured_indexes)))
+            print('Total number of video images are: %d.' % (len(image_indexes)))
+            return image_indexes, structured_indexes
 
     def gt_roidb(self):
         """
