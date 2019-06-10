@@ -4,7 +4,12 @@ from __future__ import division
 from __future__ import print_function
 
 import os
-import pickle
+try:
+   import cPickle as pickle
+   print('import cPickle')
+except:
+   import pickle
+   print('import python pickle')
 
 import datasets
 import numpy as np
@@ -35,7 +40,8 @@ def prepare_roidb(imdb):
       with open(cache_file, 'wb') as f:
         pickle.dump(sizes, f)
       print('Done!!')
-         
+  print(len(roidb))
+  print(len(sizes))
   for i in range(len(imdb.image_index)):
     roidb[i]['img_id'] = imdb.image_id_at(i)
     roidb[i]['image'] = imdb.image_path_at(i)
