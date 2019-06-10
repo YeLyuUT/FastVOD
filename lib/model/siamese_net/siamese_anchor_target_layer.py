@@ -154,14 +154,19 @@ class _SiamAnchorTargetLayer(nn.Module):
 
         if cfg.TRAIN.RPN_POSITIVE_WEIGHT < 0:
             num_examples = torch.sum(labels[i] >= 0)
-            positive_weights = 1.0 / num_examples.item()
-            negative_weights = 1.0 / num_examples.item()
+            if num_examples.item()>0:
+                positive_weights = 1.0 / num_examples.item()
+                negative_weights = 1.0 / num_examples.item()
+            else:
+                positive_weights = None
+                negative_weights = None
         else:
             assert ((cfg.TRAIN.RPN_POSITIVE_WEIGHT > 0) &
                     (cfg.TRAIN.RPN_POSITIVE_WEIGHT < 1))
 
-        bbox_outside_weights[labels == 1] = positive_weights
-        bbox_outside_weights[labels == 0] = negative_weights
+        if positive_weights is not None and negative_weights is not None:
+            bbox_outside_weights[labels == 1] = positive_weights
+            bbox_outside_weights[labels == 0] = negative_weights
 
         labels = _unmap(labels, total_anchors, inds_inside, batch_size, fill=-1)
         bbox_targets = _unmap(bbox_targets, total_anchors, inds_inside, batch_size, fill=0)
