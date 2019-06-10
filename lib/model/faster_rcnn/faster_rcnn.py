@@ -159,7 +159,7 @@ class _fasterRCNN(resnet):
         base_feat = self.RCNN_base(im_data)
 
         # feed base feature map tp RPN to obtain rois
-        self.Conv_feat_track = base_feat
+        self.Conv_feat_track = base_feat.detach()
         rois_rpn, rpn_loss_cls, rpn_loss_bbox = self.RCNN_rpn(base_feat, im_info, gt_boxes, num_boxes)
         self.rpn_rois = rois_rpn
         # if it is training phrase, then use ground truth bboxes for refinement.
