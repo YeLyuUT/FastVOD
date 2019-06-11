@@ -27,6 +27,7 @@ import torchvision.transforms as transforms
 from torch.utils.data.sampler import Sampler
 from torch.utils.data.sampler import BatchSampler
 
+from roi_data_layer.prefetcher import data_prefetcher
 from roi_data_layer.roidb_VID import combined_roidb_VID
 from roi_data_layer.roibatchLoader_VID import roibatchLoader_VID
 from model.utils.config import cfg, cfg_from_file, cfg_from_list, get_output_dir
@@ -299,7 +300,7 @@ if __name__ == '__main__':
       lmdb=imdb,
       batch_size=args.batch_size,
       vid_per_cat=50,
-      sample_gap_upper_bound=5)
+      sample_gap_upper_bound=16)
   my_batch_sampler = batchSampler(sampler = my_sampler, batch_size=args.batch_size)
 
   dataset = roibatchLoader_VID(roidb, ratio_list, ratio_index, args.batch_size, imdb.num_classes, training=True)
@@ -387,6 +388,7 @@ if __name__ == '__main__':
         lr *= args.lr_decay_gamma
 
     data_iter = iter(dataloader)
+
     for step in range(iters_per_epoch):
       data_1, data_2 = next(data_iter)
 
