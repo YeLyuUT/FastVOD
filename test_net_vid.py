@@ -91,6 +91,9 @@ def parse_args():
   parser.add_argument('--checkpoint', dest='checkpoint',
                       help='checkpoint to load network',
                       default=10021, type=int)
+  parser.add_argument('--ckpt', dest='ckpt',
+                      help='checkpoint to load model',
+                      default='', type=str)
   parser.add_argument('--vis', dest='vis',
                       help='visualization mode',
                       action='store_true')
@@ -311,8 +314,13 @@ if __name__ == '__main__':
 
   template_weights = None
   rois_tracking = None
+  vid_img_ind = 0
   for i in range(num_images):
-
+      if i==imdb._structured_indexes[vid_img_ind][0]:
+          print('Processing vid %d/%d.' % (vid_img_ind + 1, len(imdb._structured_indexes)))
+          template_weights = None
+          rois_tracking = None
+          vid_img_ind+=1
       data = next(data_iter)
       im_data.data.resize_(data[0].size()).copy_(data[0])
       im_info.data.resize_(data[1].size()).copy_(data[1])
@@ -336,7 +344,7 @@ if __name__ == '__main__':
           pred_boxes = pred_boxes.squeeze()
           if siam_bbox_pred is not None:
               siam_scores = siam_cls_prob.data
-              siam_boxes = siam_rois.data[:, :, 1:5]
+              siam_boxes = siam_rois.data[:, 1:5]
               pred_siam_bbox = bbox_delta_to_pred_boxes(im_info, siam_boxes.unsqueeze(0), siam_bbox_pred.unsqueeze(0))
               pred_siam_bbox /= data[1][0][2].item()
               pred_siam_bbox = pred_siam_bbox.squeeze(0)
@@ -363,7 +371,7 @@ if __name__ == '__main__':
               cls_boxes = pred_boxes[inds, :]
             else:
               cls_boxes = pred_boxes[inds][:, j * 4:(j + 1) * 4]
-            
+
             cls_dets = torch.cat((cls_boxes, cls_scores.unsqueeze(1)), 1)
             # cls_dets = torch.cat((cls_boxes, cls_scores), 1)
             cls_dets = cls_dets[order]
@@ -392,8 +400,9 @@ if __name__ == '__main__':
       # Get weights for the next iteration.
       ########
       # First, convert all_boxes to rois_tracking.#
-      rois_tracking = prepare_rois_tracking(all_boxes, all_boxes_scores, frame_id=i, class_num=imdb.num_classes, thresh=cfg.SIAMESE.THRESH_FOR_TRACKING)
-      base_feat = RCNN.track_feat_trans(RCNN.RCNN.Conv_feat_track)
+      rois_tracking = prepare_rois_tracking(im_info[0], all_boxes, all_boxes_scores, frame_id=i,
+                                            class_num=imdb.num_classes, thresh=cfg.SIAMESE.THRESH_FOR_TRACKING)
+      base_feat = RCNN.track_feat_trans.cuda()(RCNN.RCNN.Conv_feat_track)
       template_weights, rois_tracking = siam_weights_preparation(rois_tracking, base_feat)
 
       misc_toc = time.time()
