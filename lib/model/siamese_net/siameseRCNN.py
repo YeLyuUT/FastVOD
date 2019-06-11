@@ -202,4 +202,7 @@ class _siameseRCNN(nn.Module):
         RCNN_loss_cls = (RCNN_loss_cls_1.mean() + RCNN_loss_cls_2.mean()) / 2
         RCNN_loss_bbox = (RCNN_loss_bbox_1.mean() + RCNN_loss_bbox_2.mean()) / 2
         rois_label = torch.cat((rois_label_1, rois_label_2), 0)
+
+        siamRPN_loss_cls = torch.unsqueeze(0, siamRPN_loss_cls)
+        siamRPN_loss_box = torch.unsqueeze(0, siamRPN_loss_box)
         return rois_label, siamRPN_loss_cls, siamRPN_loss_box, rpn_loss_cls, rpn_loss_box, RCNN_loss_cls, RCNN_loss_bbox

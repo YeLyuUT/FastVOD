@@ -318,7 +318,7 @@ class siameseRPN(nn.Module):
                 self.rpn_loss_box = _smooth_l1_loss(rpn_bbox_pred, rpn_bbox_targets, rpn_bbox_inside_weights,
                                                     rpn_bbox_outside_weights, sigma=3, dim=[1, 2, 3])
             else:
-                self.rpn_loss_cls, self.rpn_loss_box = rois.new_zeros((rois.size(0),1)), rois.new_zeros((rois.size(0),1))
+                self.rpn_loss_cls, self.rpn_loss_box = None, None
         return rois, scores, self.rpn_loss_cls, self.rpn_loss_box
 
 
