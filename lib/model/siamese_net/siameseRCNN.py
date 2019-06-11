@@ -191,11 +191,11 @@ class _siameseRCNN(nn.Module):
         if len(tracking_losses_cls_ls) > 0:
             siamRPN_loss_cls = torch.mean(torch.stack(tracking_losses_cls_ls))
         else:
-            siamRPN_loss_cls = rpn_loss_cls_2.new_zeros(1)
+            siamRPN_loss_cls = None
         if len(tracking_losses_box_ls) > 0:
             siamRPN_loss_box = torch.mean(torch.stack(tracking_losses_box_ls))
         else:
-            siamRPN_loss_box = rpn_loss_box_2.new_zeros(1)
+            siamRPN_loss_box = None
 
         rpn_loss_cls = (rpn_loss_cls_1.mean() + rpn_loss_cls_2.mean()) / 2
         rpn_loss_box = (rpn_loss_box_1.mean() + rpn_loss_box_2.mean()) / 2
@@ -203,6 +203,12 @@ class _siameseRCNN(nn.Module):
         RCNN_loss_bbox = (RCNN_loss_bbox_1.mean() + RCNN_loss_bbox_2.mean()) / 2
         rois_label = torch.cat((rois_label_1, rois_label_2), 0)
 
-        siamRPN_loss_cls = torch.unsqueeze(siamRPN_loss_cls, 0)
-        siamRPN_loss_box = torch.unsqueeze(siamRPN_loss_box, 0)
+        if siamRPN_loss_cls is not None:
+            siamRPN_loss_cls = siamRPN_loss_cls.unsqueeze(0)
+        if siamRPN_loss_box is not None:
+            siamRPN_loss_box = siamRPN_loss_box.unsqueeze(0)
+        rpn_loss_cls = rpn_loss_cls.unsqueeze(0)
+        rpn_loss_box = rpn_loss_box.unsqueeze(0)
+        RCNN_loss_cls = RCNN_loss_cls.unsqueeze(0)
+        RCNN_loss_bbox = RCNN_loss_bbox.unsqueeze(0)
         return rois_label, siamRPN_loss_cls, siamRPN_loss_box, rpn_loss_cls, rpn_loss_box, RCNN_loss_cls, RCNN_loss_bbox

@@ -294,6 +294,8 @@ if __name__ == '__main__':
 
   # TODO change the dataloader and sampler.
   train_size = 21000
+  if args.dataset == "imagenetVID_1_vid":
+      train_size = 100
   #my_sampler = sampler(train_size = train_size, lmdb=imdb, batch_size=args.batch_size, vid_per_cat = 50, sample_gap_upper_bound = 100)
   # TODO change back.
   my_sampler = sampler(
@@ -407,9 +409,11 @@ if __name__ == '__main__':
       input = (im_data_1, im_info_1, num_boxes_1, gt_boxes_1, im_data_2, im_info_2, num_boxes_2, gt_boxes_2)
       rois_label, siamRPN_loss_cls, siamRPN_loss_box, rpn_loss_cls, rpn_loss_box, RCNN_loss_cls, RCNN_loss_bbox = RCNN(input)
 
+
       loss = rpn_loss_cls.mean() + rpn_loss_box.mean() \
-             + RCNN_loss_cls.mean() + RCNN_loss_bbox.mean()\
-             + siamRPN_loss_cls.mean() + siamRPN_loss_box.mean()
+             + RCNN_loss_cls.mean() + RCNN_loss_bbox.mean()
+      if siamRPN_loss_cls is not None and siamRPN_loss_box is not None:
+        loss += siamRPN_loss_cls.mean() + siamRPN_loss_box.mean()
       loss_temp += loss.item()
 
       # backward
@@ -425,15 +429,23 @@ if __name__ == '__main__':
           loss_temp /= (args.disp_interval + 1)
 
         if args.mGPUs:
-            loss_siam_cls = siamRPN_loss_cls.mean().item()
-            loss_siam_box = siamRPN_loss_box.mean().item()
+            if siamRPN_loss_cls is not None:
+                loss_siam_cls = siamRPN_loss_cls.mean().item()
+            if siamRPN_loss_box is not None:
+                loss_siam_box = siamRPN_loss_box.mean().item()
             loss_rpn_cls = rpn_loss_cls.mean().item()
             loss_rpn_box = rpn_loss_box.mean().item()
             loss_rcnn_cls = RCNN_loss_cls.mean().item()
             loss_rcnn_box = RCNN_loss_bbox.mean().item()
         else:
-            loss_siam_cls = siamRPN_loss_cls.item()
-            loss_siam_box = siamRPN_loss_box.item()
+            if siamRPN_loss_cls is not None:
+                loss_siam_cls = siamRPN_loss_cls.item()
+            else:
+                loss_siam_cls = 0
+            if siamRPN_loss_box is not None:
+                loss_siam_box = siamRPN_loss_box.item()
+            else:
+                loss_siam_box = 0
             loss_rpn_cls = rpn_loss_cls.item()
             loss_rpn_box = rpn_loss_box.item()
             loss_rcnn_cls = RCNN_loss_cls.item()
