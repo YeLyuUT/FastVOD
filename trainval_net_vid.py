@@ -30,6 +30,7 @@ from torch.utils.data.sampler import BatchSampler
 from roi_data_layer.prefetcher import data_prefetcher
 from roi_data_layer.roidb_VID import combined_roidb_VID
 from roi_data_layer.roibatchLoader_VID import roibatchLoader_VID
+from roi_data_layer.collate_minibatch import collate_minibatch
 from model.utils.config import cfg, cfg_from_file, cfg_from_list, get_output_dir
 from model.utils.net_utils import weights_normal_init, save_net, load_net, \
       adjust_learning_rate, save_checkpoint, clip_gradient
@@ -304,7 +305,7 @@ if __name__ == '__main__':
   my_batch_sampler = batchSampler(sampler = my_sampler, batch_size=args.batch_size)
 
   dataset = roibatchLoader_VID(roidb, ratio_list, ratio_index, args.batch_size, imdb.num_classes, training=True)
-  dataloader = torch.utils.data.DataLoader(dataset, batch_sampler=my_batch_sampler, num_workers=args.num_workers)
+  dataloader = torch.utils.data.DataLoader(dataset, batch_sampler=my_batch_sampler, num_workers=args.num_workers, collate_fn=collate_minibatch)
 
   if args.cuda:
     cfg.CUDA = True
