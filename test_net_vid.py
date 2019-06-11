@@ -135,8 +135,8 @@ def prepare_rois_tracking(im_info, all_boxes, all_boxes_scores, frame_id, class_
     for j in range(1, class_num):
         if len(all_boxes[j][frame_id]) == 0:
             continue
-        scored_boxes = all_boxes[j][frame_id]
-        scores = all_boxes_scores[j][frame_id]
+        scored_boxes = all_boxes[j][frame_id].copy()
+        scores = all_boxes_scores[j][frame_id].copy()
         assert len(scored_boxes)==len(scores), 'length of scored_boxes and length of scores should be the equal.'
         # TODO comment out the following for loop to accelerate predictions.
         scored_boxes[:, :4] = scored_boxes[:, :4] * im_info[-1]
@@ -154,9 +154,6 @@ def prepare_rois_tracking(im_info, all_boxes, all_boxes_scores, frame_id, class_
         rois_tracking = None
     return rois_tracking
 
-lr = cfg.TRAIN.LEARNING_RATE
-momentum = cfg.TRAIN.MOMENTUM
-weight_decay = cfg.TRAIN.WEIGHT_DECAY
 
 if __name__ == '__main__':
   args = parse_args()

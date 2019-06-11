@@ -89,8 +89,8 @@ class _siameseRCNN(nn.Module):
             #print('siam_rois:',siam_rois)
             #print('siam_scores:',siam_scores)
             sel_siam_rois, sel_siam_scores = self.nms(rois=rois_tracking[:, :4], rpn_rois=siam_rois, scores=siam_scores)
-            print('sel_siam_rois:', sel_siam_rois)
-            print('sel_siam_scores:', sel_siam_scores)
+            #print('sel_siam_rois:', sel_siam_rois)
+            #print('sel_siam_scores:', sel_siam_scores)
             # Add batch indexes.
             batch_ids = sel_siam_rois.new_zeros((sel_siam_rois.size(0), 1))
             sel_siam_rois = torch.cat((batch_ids, sel_siam_rois), 1)
@@ -170,8 +170,8 @@ class _siameseRCNN(nn.Module):
         rtv_training_tuples = self.t_t_prop_layer(conv4_feat_1, conv4_feat_2, rpn_rois_1, gt_boxes_1, gt_boxes_2)
         rois = None
         scores = None
-        siamRPN_loss_cls = None
-        siamRPN_loss_box = None
+        siamRPN_loss_cls = 0
+        siamRPN_loss_box = 0
         # For memory issue, we randomly sample tuples for training.
         shuffle(rtv_training_tuples)
         rtv_training_tuples = rtv_training_tuples[:cfg.TRAIN.SIAMESE_MAX_TRACKING_OBJ]
@@ -202,4 +202,4 @@ class _siameseRCNN(nn.Module):
         RCNN_loss_cls = (RCNN_loss_cls_1.mean() + RCNN_loss_cls_2.mean()) / 2
         RCNN_loss_bbox = (RCNN_loss_bbox_1.mean() + RCNN_loss_bbox_2.mean()) / 2
         rois_label = torch.cat((rois_label_1, rois_label_2), 0)
-        return rois, scores, rois_label, siamRPN_loss_cls, siamRPN_loss_box, rpn_loss_cls, rpn_loss_box, RCNN_loss_cls, RCNN_loss_bbox
+        return rois_label, siamRPN_loss_cls, siamRPN_loss_box, rpn_loss_cls, rpn_loss_box, RCNN_loss_cls, RCNN_loss_bbox
