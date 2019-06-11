@@ -206,7 +206,7 @@ if __name__ == '__main__':
 
   print('Using config:')
   pprint.pprint(cfg)
-  np.random.seed(cfg.RNG_SEED)
+  #np.random.seed(cfg.RNG_SEED)
 
   #torch.backends.cudnn.benchmark = True
   if torch.cuda.is_available() and not args.cuda:

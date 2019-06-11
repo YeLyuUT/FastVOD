@@ -272,7 +272,7 @@ if __name__ == '__main__':
 
   print('Using config:')
   pprint.pprint(cfg)
-  np.random.seed(cfg.RNG_SEED)
+  #np.random.seed(cfg.RNG_SEED)
 
   #torch.backends.cudnn.benchmark = True
   if torch.cuda.is_available() and not args.cuda:
@@ -404,7 +404,7 @@ if __name__ == '__main__':
 
       RCNN.zero_grad()
       input = (im_data_1, im_info_1, num_boxes_1, gt_boxes_1, im_data_2, im_info_2, num_boxes_2, gt_boxes_2)
-      rois, scores, rois_label, siamRPN_loss_cls, siamRPN_loss_box, rpn_loss_cls, rpn_loss_box, RCNN_loss_cls, RCNN_loss_bbox = RCNN(input)
+      rois_label, siamRPN_loss_cls, siamRPN_loss_box, rpn_loss_cls, rpn_loss_box, RCNN_loss_cls, RCNN_loss_bbox = RCNN(input)
 
       loss = rpn_loss_cls.mean() + rpn_loss_box.mean() \
              + RCNN_loss_cls.mean() + RCNN_loss_bbox.mean()\
