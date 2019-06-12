@@ -45,6 +45,7 @@ def pad_image_data(list_of_tensors, sz):
     :param sz: torch.Size of dim 3.
     :return:
     '''
+    list_of_tensors = list(list_of_tensors)
     tensor0 = list_of_tensors[0]
     for i in range(len(list_of_tensors)):
         tnsr = list_of_tensors[i]
@@ -54,4 +55,5 @@ def pad_image_data(list_of_tensors, sz):
             new_tensor = tensor0.new_zeros(sz)
             new_tensor[:,:sz_tnsr[1],:sz_tnsr[2]] = tnsr
             list_of_tensors[i] = new_tensor
+    list_of_tensors = tuple(list_of_tensors)
     return list_of_tensors
