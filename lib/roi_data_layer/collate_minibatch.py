@@ -1,46 +1,59 @@
+import torch
 from model.utils.config import cfg
 from torch.utils.data.dataloader import default_collate
 import numpy as np
 
-def collate_minibatch(list_of_blobs):
+def collate_minibatch(list_of_inputs):
     """Stack samples seperately and return a list of minibatches
     A batch contains NUM_GPUS minibatches and image size in different minibatch may be different.
     Hence, we need to stack smaples from each minibatch seperately.
     """
-    Batch = {key: [] for key in list_of_blobs[0]}
-    # Because roidb consists of entries of variable length, it can't be batch into a tensor.
-    # So we keep roidb in the type of "list of ndarray".
-    list_of_roidb = [blobs.pop('roidb') for blobs in list_of_blobs]
-    for i in range(0, len(list_of_blobs), cfg.TRAIN.IMS_PER_BATCH):
-        mini_list = list_of_blobs[i:(i + cfg.TRAIN.IMS_PER_BATCH)]
-        # Pad image data
-        mini_list = pad_image_data(mini_list)
-        minibatch = default_collate(mini_list)
-        minibatch['roidb'] = list_of_roidb[i:(i + cfg.TRAIN.IMS_PER_BATCH)]
-        for key in minibatch:
-            Batch[key].append(minibatch[key])
-    return Batch
+    if isinstance(list_of_inputs[0], torch.Tensor):
+        print('in tensor:', list_of_inputs[0].size())
+        print('len tensors:', len(list_of_inputs))
+        list_of_inputs = check_pad_tensor_data(list_of_inputs)
+        out = None
+        return torch.stack(list_of_inputs, 0, out=out)
+    elif isinstance(list_of_inputs[0], list):
+        transposed = zip(*list_of_inputs)
+        return [collate_minibatch(b) for b in transposed]
+    elif isinstance(list_of_inputs[0], tuple):
+        transposed = zip(*list_of_inputs)
+        return [collate_minibatch(b) for b in transposed]
+    else:
+        return default_collate(list_of_inputs)
 
+def check_pad_tensor_data(list_of_tensors):
+    tensor0 = list_of_tensors[0]
+    if tensor0.dim() != 3:
+        return list_of_tensors
+    else:
+        are_tensors_same_sz = True
+        max_h = tensor0.size(1)
+        max_w = tensor0.size(2)
+        for i in range(1,len(list_of_tensors)):
+            tensor = list_of_tensors[i]
+            if are_tensors_same_sz is False or tensor0.size() != tensor.size():
+                are_tensors_same_sz = False
+                max_h = max(max_h, tensor.size(1))
+                max_w = max(max_w, tensor.size(2))
+        if are_tensors_same_sz is False:
+            list_of_tensors = pad_image_data(list_of_tensors, torch.Size((tensor0.size(0),max_h,max_w)))
+        return list_of_tensors
 
-def get_max_shape(im_shapes):
-    """Calculate max spatial size (h, w) for batching given a list of image shapes
-    """
-    max_shape = np.array(im_shapes).max(axis=0)
-    assert max_shape.size == 2
-    # Pad the image so they can be divisible by a stride
-    if cfg.FPN.FPN_ON:
-        stride = float(cfg.FPN.COARSEST_STRIDE)
-        max_shape[0] = int(np.ceil(max_shape[0] / stride) * stride)
-        max_shape[1] = int(np.ceil(max_shape[1] / stride) * stride)
-    return max_shape
-
-def pad_image_data(list_of_blobs):
-    max_shape = get_max_shape([blobs['data'].shape[1:] for blobs in list_of_blobs])
-    output_list = []
-    for blobs in list_of_blobs:
-        data_padded = np.zeros((3, max_shape[0], max_shape[1]), dtype=np.float32)
-        _, h, w = blobs['data'].shape
-        data_padded[:, :h, :w] = blobs['data']
-        blobs['data'] = data_padded
-        output_list.append(blobs)
-    return output_list
+def pad_image_data(list_of_tensors, sz):
+    '''
+    :param list_of_tensors:
+    :param sz: torch.Size of dim 3.
+    :return:
+    '''
+    tensor0 = list_of_tensors[0]
+    for i in range(len(list_of_tensors)):
+        tnsr = list_of_tensors[i]
+        sz_tnsr = tnsr.size()
+        if sz_tnsr != sz:
+            # padding the data if the sizes are not equal.
+            new_tensor = tensor0.new_zeros(sz)
+            new_tensor[:,:sz_tnsr[1],:sz_tnsr[2]] = tnsr
+            list_of_tensors[i] = new_tensor
+    return list_of_tensors
