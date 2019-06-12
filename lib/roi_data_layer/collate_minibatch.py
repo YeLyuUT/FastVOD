@@ -9,8 +9,6 @@ def collate_minibatch(list_of_inputs):
     Hence, we need to stack smaples from each minibatch seperately.
     """
     if isinstance(list_of_inputs[0], torch.Tensor):
-        print('in tensor:', list_of_inputs[0].size())
-        print('len tensors:', len(list_of_inputs))
         list_of_inputs = check_pad_tensor_data(list_of_inputs)
         out = None
         return torch.stack(list_of_inputs, 0, out=out)
