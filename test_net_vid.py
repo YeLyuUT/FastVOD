@@ -312,12 +312,18 @@ if __name__ == '__main__':
   template_weights = None
   rois_tracking = None
   vid_img_ind = 0
+
+  incr_vid_img_ind = False
   for i in range(num_images):
+      if incr_vid_img_ind is True:
+          vid_img_ind += 1
+          incr_vid_img_ind = False
       if i==imdb._structured_indexes[vid_img_ind][0]:
           print('Processing vid %d/%d.' % (vid_img_ind + 1, len(imdb._structured_indexes)))
           template_weights = None
           rois_tracking = None
-          vid_img_ind+=1
+      if i==imdb._structured_indexes[vid_img_ind][-1]:
+          incr_vid_img_ind = True
       data = next(data_iter)
       im_data.data.resize_(data[0].size()).copy_(data[0])
       im_info.data.resize_(data[1].size()).copy_(data[1])
