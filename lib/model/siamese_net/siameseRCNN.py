@@ -205,10 +205,15 @@ class _siameseRCNN(nn.Module):
 
         if siamRPN_loss_cls is not None:
             siamRPN_loss_cls = siamRPN_loss_cls.unsqueeze(0)
+        else:
+            siamRPN_loss_cls = rpn_loss_cls.new_zeros(1)
         if siamRPN_loss_box is not None:
             siamRPN_loss_box = siamRPN_loss_box.unsqueeze(0)
+        else:
+            siamRPN_loss_box = rpn_loss_cls.new_zeros(1)
         rpn_loss_cls = rpn_loss_cls.unsqueeze(0)
         rpn_loss_box = rpn_loss_box.unsqueeze(0)
         RCNN_loss_cls = RCNN_loss_cls.unsqueeze(0)
         RCNN_loss_bbox = RCNN_loss_bbox.unsqueeze(0)
+
         return rois_label, siamRPN_loss_cls, siamRPN_loss_box, rpn_loss_cls, rpn_loss_box, RCNN_loss_cls, RCNN_loss_bbox
