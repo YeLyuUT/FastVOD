@@ -321,13 +321,15 @@ if __name__ == '__main__':
 
   # setting to train mode
   RCNN.train()
+  data_iter = None
   for epoch in range(args.start_epoch, args.max_epochs + 1):
     loss_temp = 0
     start = time.time()
     if args.lr_decay_step>0 and epoch % (args.lr_decay_step + 1) == 0:
         adjust_learning_rate(optimizer, args.lr_decay_gamma)
         lr *= args.lr_decay_gamma
-
+    if data_iter is not None:
+        del data_iter
     data_iter = iter(dataloader)
     for step in range(iters_per_epoch):
       data = next(data_iter)

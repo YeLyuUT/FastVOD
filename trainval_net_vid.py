@@ -294,20 +294,22 @@ if __name__ == '__main__':
 
   # TODO change the dataloader and sampler.
   train_size = 21000
+  vid_per_cat = 50
   if args.dataset == "imagenetVID_1_vid":
-      train_size = 100
+      train_size = 120
+      vid_per_cat = 1
   #my_sampler = sampler(train_size = train_size, lmdb=imdb, batch_size=args.batch_size, vid_per_cat = 50, sample_gap_upper_bound = 100)
   # TODO change back.
   my_sampler = sampler(
       train_size=train_size,
       lmdb=imdb,
       batch_size=args.batch_size,
-      vid_per_cat=50,
+      vid_per_cat=vid_per_cat,
       sample_gap_upper_bound=16)
   my_batch_sampler = batchSampler(sampler = my_sampler, batch_size=args.batch_size)
 
   dataset = roibatchLoader_VID(roidb, ratio_list, ratio_index, args.batch_size, imdb.num_classes, training=True)
-  dataloader = torch.utils.data.DataLoader(dataset, batch_sampler=my_batch_sampler, num_workers=args.num_workers, collate_fn=collate_minibatch)
+  dataloader = torch.utils.data.DataLoader(dataset, batch_sampler=my_batch_sampler, num_workers=args.num_workers)#, collate_fn=collate_minibatch)
 
   if args.cuda:
     cfg.CUDA = True
@@ -378,6 +380,7 @@ if __name__ == '__main__':
     from tensorboardX import SummaryWriter
     logger = SummaryWriter("logs")
 
+  data_iter = None
   im_data_1, im_info_1, num_boxes_1, gt_boxes_1 = create_tensor_holder()
   im_data_2, im_info_2, num_boxes_2, gt_boxes_2 = create_tensor_holder()
   for epoch in range(args.start_epoch, args.max_epochs + 1):
@@ -390,6 +393,8 @@ if __name__ == '__main__':
         adjust_learning_rate(optimizer, args.lr_decay_gamma)
         lr *= args.lr_decay_gamma
 
+    if data_iter is not None:
+        del data_iter
     data_iter = iter(dataloader)
 
     for step in range(iters_per_epoch):
