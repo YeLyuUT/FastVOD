@@ -86,8 +86,8 @@ class siameseRPN(nn.Module):
                     m.bias.data.zero_()
 
         normal_init(self.RPN_bbox_adjust, 0, 0.001, cfg.TRAIN.TRUNCATED)
-        normal_init(self.RPN_Conv_cls, 0, 0.001, cfg.TRAIN.TRUNCATED)
-        normal_init(self.RPN_Conv_bbox, 0, 0.001, cfg.TRAIN.TRUNCATED)
+        normal_init(self.RPN_Conv_cls, 0, 0.0001, cfg.TRAIN.TRUNCATED)
+        normal_init(self.RPN_Conv_bbox, 0, 0.0001, cfg.TRAIN.TRUNCATED)
         #normal_init(self.RPN_cls_score, 0, 0.01, cfg.TRAIN.TRUNCATED)
         #normal_init(self.RPN_bbox_pred, 0, 0.001, cfg.TRAIN.TRUNCATED)
         self._init_score_w_accord_to_target_w(self.nc_score_out, self.RPN_Conv_cls.weight, self.RPN_cls_score.weight)
