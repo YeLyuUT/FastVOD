@@ -320,6 +320,9 @@ __C.SIAMESE.HANNING_WINDOW_SIZE_FACTOR = 0.6
 __C.SIAMESE.PANELTY_K = 0.4
 # Whether to use distance to penalize rpn box selection.
 __C.SIAMESE.USE_POS_PRIOR_FOR_SEL = True
+# Detach the siam training features or not.
+__C.SIAMESE.DETACH_FEAT = False
+
 #
 # MISC
 #
