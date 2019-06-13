@@ -8,7 +8,7 @@ from model.roi_crop.modules.roi_crop import _RoICrop
 from model.utils.net_utils import _affine_grid_gen
 
 class weight_crop_layer(nn.Module):
-    def __init__(self, din = 1024, spatial_scale=1.0 / 16.0):
+    def __init__(self, din = 1024, spatial_scale=cfg.SIAMESE.WEIGHT_CROPPING_LAYER_SCALE):
         super(weight_crop_layer, self).__init__()
         self.crop_kernel = None
         self.spatial_shrinkage_layer = None

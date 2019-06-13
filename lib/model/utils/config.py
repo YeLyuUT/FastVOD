@@ -274,7 +274,7 @@ __C.TRAIN.SIAMESE_RPN_POST_NMS_TOP_N =2000
 __C.TRAIN.SIAMESE_RPN_NMS_THRESH =0.7
 __C.TRAIN.SIAMESE_RPN_MIN_SIZE =8
 # Max number of objects for tracking training.
-__C.TRAIN.SIAMESE_MAX_TRACKING_OBJ = 6
+__C.TRAIN.SIAMESE_MAX_TRACKING_OBJ = 64
 
 __C.TEST.SIAMESE_RPN_PRE_NMS_TOP_N =6000
 __C.TEST.SIAMESE_RPN_POST_NMS_TOP_N =300
@@ -286,7 +286,10 @@ __C.SIAMESE.TEMPLATE_SEL_FG_THRESH = 0.7
 # We do not need negative examples. So TEMPLATE_SEL_BG_THRESH_LO==TEMPLATE_SEL_BG_THRESH_HI
 __C.SIAMESE.TEMPLATE_SEL_BG_THRESH_LO = 0.1
 __C.SIAMESE.TEMPLATE_SEL_BG_THRESH_HI = 0.01
-__C.SIAMESE.TEMPLATE_SEL_BATCH_SIZE = 64
+__C.SIAMESE.TEMPLATE_SEL_BATCH_SIZE = 128
+# TODO Generate template from gt boxes.
+__C.SIAMESE.TEMPLATE_GEN_FROM_GT_ITERS = 1
+
 # Threshold used to select class template for tracking.
 __C.SIAMESE.TEMPLATE_SEL_CLS_THRESH = 0.8
 # The weight kernel size of the template.
@@ -301,7 +304,7 @@ __C.SIAMESE.RPN_NMS_THRESH = 0.7
 # Proposal height and width both need to be greater than RPN_MIN_SIZE (at orig image scale)
 __C.SIAMESE.RPN_POSITIVE_OVERLAP = 0.6
 # Select training samples for siameseRPN loss. RPN_NEGATIVE_OVERLAP_LO < IOU < RPN_NEGATIVE_OVERLAP_HI: negative example
-__C.SIAMESE.RPN_NEGATIVE_OVERLAP_HI = 0.4
+__C.SIAMESE.RPN_NEGATIVE_OVERLAP_HI = 0.3
 __C.SIAMESE.RPN_NEGATIVE_OVERLAP_LO = 0.01
 # This should be 1.0. As we only propose positive training samples.
 __C.SIAMESE.FG_FRACTION = 1.0
@@ -322,6 +325,8 @@ __C.SIAMESE.PANELTY_K = 0.4
 __C.SIAMESE.USE_POS_PRIOR_FOR_SEL = True
 # Detach the siam training features or not.
 __C.SIAMESE.DETACH_FEAT = False
+__C.SIAMESE.NORMALIZE_CORRELATION = True
+__C.SIAMESE.WEIGHT_CROPPING_LAYER_SCALE = 1.0/16.0
 
 #
 # MISC
