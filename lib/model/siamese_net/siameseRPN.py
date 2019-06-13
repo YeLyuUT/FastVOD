@@ -11,6 +11,7 @@ from model.siamese_net.siam_proposal_layer import _SiamProposalLayer
 #from model.rpn.anchor_target_layer import _AnchorTargetLayer
 from model.siamese_net.siamese_anchor_target_layer import _SiamAnchorTargetLayer as _AnchorTargetLayer
 from model.utils.net_utils import _smooth_l1_loss
+import math
 
 
 class siameseRPN(nn.Module):
@@ -51,6 +52,7 @@ class siameseRPN(nn.Module):
             nn.Conv2d(self.din, self.correlation_channel * self.nc_bbox_out, 1, 1, 0, bias=False),
             nn.BatchNorm2d(self.correlation_channel * self.nc_bbox_out),)
             #nn.ReLU(inplace=True))'''
+
         # define proposal layer
         self.RPN_proposal = _SiamProposalLayer(self.feat_stride, self.anchor_scales, self.anchor_ratios)
 
@@ -86,8 +88,12 @@ class siameseRPN(nn.Module):
                     m.bias.data.zero_()
 
         normal_init(self.RPN_bbox_adjust, 0, 0.001, cfg.TRAIN.TRUNCATED)
-        normal_init(self.RPN_Conv_cls, 0, 0.0001, cfg.TRAIN.TRUNCATED)
-        normal_init(self.RPN_Conv_bbox, 0, 0.0001, cfg.TRAIN.TRUNCATED)
+        if cfg.SIAMESE.NORMALIZE_CORRELATION is True:
+            normal_init(self.RPN_Conv_cls, 0, 0.01, cfg.TRAIN.TRUNCATED)
+            normal_init(self.RPN_Conv_bbox, 0, 0.001, cfg.TRAIN.TRUNCATED)
+        else:
+            normal_init(self.RPN_Conv_cls, 0, 0.0001, cfg.TRAIN.TRUNCATED)
+            normal_init(self.RPN_Conv_bbox, 0, 0.0001, cfg.TRAIN.TRUNCATED)
         #normal_init(self.RPN_cls_score, 0, 0.01, cfg.TRAIN.TRUNCATED)
         #normal_init(self.RPN_bbox_pred, 0, 0.001, cfg.TRAIN.TRUNCATED)
         self._init_score_w_accord_to_target_w(self.nc_score_out, self.RPN_Conv_cls.weight, self.RPN_cls_score.weight)
@@ -144,6 +150,12 @@ class siameseRPN(nn.Module):
         H = target_feat.size(2)
         W = target_feat.size(3)
 
+        if cfg.SIAMESE.NORMALIZE_CORRELATION is True:
+            tmp_sz = template_feat.size()
+            template_feat = template_feat.view(template_feat.size(0),-1)
+            template_feat=template_feat/torch.norm(template_feat, p=2, dim=1, keepdim=True)
+            template_feat = template_feat.view(tmp_sz)
+
         out = nn.functional.conv2d(
             target_feat,
             template_feat,
@@ -175,6 +187,12 @@ class siameseRPN(nn.Module):
         template_feat = template_feat.view(n_templates * out_dim_w * in_dim_w, 1, kh, kw)
         H = target_feat.size(2)
         W = target_feat.size(3)
+
+        if cfg.SIAMESE.NORMALIZE_CORRELATION is True:
+            tmp_sz = template_feat.size()
+            template_feat = template_feat.view(template_feat.size(0),-1)
+            template_feat=template_feat/torch.norm(template_feat, p=2, dim=1, keepdim=True)
+            template_feat = template_feat.view(tmp_sz)
 
         out = nn.functional.conv2d(
             target_feat,
@@ -256,6 +274,7 @@ class siameseRPN(nn.Module):
         template_feat_cls = self.RPN_cls_score(template_feat)
         template_feat_bbox = self.RPN_bbox_pred(template_feat)
 
+
         template_feat_cls = template_feat_cls.view(n_templates, self.nc_score_out, -1, template_feat_cls.size(2),
                                                    template_feat_cls.size(3))
         template_feat_bbox = template_feat_bbox.view(n_templates, self.nc_bbox_out, -1, template_feat_bbox.size(2),
@@ -269,8 +288,8 @@ class siameseRPN(nn.Module):
             rpn_cls_score = self.cross_correlation(target_feat_cls, template_feat_cls, self.bias_cls)
             rpn_bbox_pred = self.cross_correlation(target_feat_bbox, template_feat_bbox, self.bias_bbox)
 
-        rpn_cls_score = rpn_cls_score*0.1
-        rpn_bbox_pred = rpn_bbox_pred*0.1
+        #rpn_cls_score = rpn_cls_score*0.1
+        #rpn_bbox_pred = rpn_bbox_pred*0.1
         # adjust
         rpn_bbox_pred = self.RPN_bbox_adjust(rpn_bbox_pred)
 
