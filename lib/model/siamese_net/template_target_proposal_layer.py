@@ -32,7 +32,10 @@ class _TemplateTargetProposalLayer(nn.Module):
         # template_labels size (N,n)
         # template_track_ids size (N,n)
         template_rois_all, template_labels_all, template_track_ids_all = self.template_proposal_layer(
-            (rpn_rois_1, gt_boxes_1))
+            (rpn_rois_1,
+             gt_boxes_1,
+             feats1.size(3)/cfg.SIAMESE.WEIGHT_CROPPING_LAYER_SCALE,
+             feats1.size(2)/cfg.SIAMESE.WEIGHT_CROPPING_LAYER_SCALE))
         template_weights_all = self.crop_weights_from_feats(feats1, template_rois_all).view(
             batch_size,
             template_rois_all.size(1),

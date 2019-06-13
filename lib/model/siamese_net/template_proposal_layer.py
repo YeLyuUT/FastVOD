@@ -18,8 +18,9 @@ class _TemplateProposalLayer(nn.Module):
 
     def forward(self, inputs):
         if self.training:
-            all_rois, gt_boxes = inputs
-            rois, labels, track_ids = self.propose_template_training(all_rois, gt_boxes)
+            # max_w, max_h are for boxes clipping in randomize_boxes func.
+            all_rois, gt_boxes, max_w, max_h = inputs
+            rois, labels, track_ids = self.propose_template_training(all_rois, gt_boxes, max_w, max_h)
             return rois, labels, track_ids
         else:
             bbox_pred, cls_prob, track_ids = inputs
@@ -38,22 +39,74 @@ class _TemplateProposalLayer(nn.Module):
         sel_ind = torch.where(cls_prob>cfg.SIAMESE.TEMPLATE_SEL_CLS_THRESH)[0]
         return bbox_pred[sel_ind], cls_prob[sel_ind], track_ids[sel_ind]
 
-    def propose_template_training(self, all_rois, gt_boxes):
-        gt_boxes_append = gt_boxes.new_zeros((gt_boxes.size()[0], gt_boxes.size()[1], 5))
-        gt_boxes_append[:, :, 1:5] = gt_boxes[:, :, :4]
+    def clip_vector_val(self, vals, min, max):
+        sz = vals.size()
+        vals = vals.view(-1)
+        nzrs = torch.nonzero(vals < min)
+        if len(nzrs>0):
+            vals[nzrs[0]] = min
+        nzrs = torch.nonzero(vals > max)
+        if len(nzrs>0):
+            vals[nzrs[0]] = max
+        return vals.view(sz)
 
-        # Include ground-truth boxes in the set of candidate rois
-        if all_rois is None:
-            all_rois = gt_boxes_append
-        else:
-            all_rois = torch.cat([all_rois, gt_boxes_append], 1)
+    def randomize_boxes(self, boxes, max_w, max_h, c_std=0.1, s_std=0.1):
+        '''
 
+        :param boxes: size of (N, n, 5)
+        :param c_std: lower and upper bound of center position changing ratio.
+        :param s_std: lower and upper bound of size changing ratio.
+        :return:
+        '''
+        new_boxes = boxes.clone().detach()
+
+        x = (new_boxes[:, :, 1] + new_boxes[:, :, 3]) / 2.0
+        y = (new_boxes[:, :, 2] + new_boxes[:, :, 4]) / 2.0
+        w = (new_boxes[:, :, 3] - new_boxes[:, :, 1])
+        h = (new_boxes[:, :, 4] - new_boxes[:, :, 2])
+        new_x = x.new_zeros(x.size()).uniform_(-c_std, c_std) * w + x
+        new_y = y.new_zeros(y.size()).uniform_(-c_std, c_std) * h + y
+        new_w = w.new_zeros(w.size()).uniform_(-s_std, s_std) * w + w
+        new_h = h.new_zeros(h.size()).uniform_(-s_std, s_std) * h + h
+
+        new_x1 = new_x - new_w / 2.0
+        new_y1 = new_y - new_h / 2.0
+        new_x2 = new_x + new_w / 2.0
+        new_y2 = new_y + new_h / 2.0
+
+        new_boxes[:, :, 1] = self.clip_vector_val(new_x1, 0., max_w-1.)
+        new_boxes[:, :, 2] = self.clip_vector_val(new_y1, 0., max_h-1.)
+        new_boxes[:, :, 3] = self.clip_vector_val(new_x2, 0., max_w-1.)
+        new_boxes[:, :, 4] = self.clip_vector_val(new_y2, 0., max_h-1.)
+
+        return new_boxes
+
+    def propose_template_training(self, all_rois, gt_boxes, max_w, max_h):
         num_images = 1
         rois_per_image = int(cfg.SIAMESE.TEMPLATE_SEL_BATCH_SIZE / num_images)
         fg_rois_per_image = int(np.round(cfg.SIAMESE.FG_FRACTION * rois_per_image))
         fg_rois_per_image = 1 if fg_rois_per_image == 0 else fg_rois_per_image
 
-        rois, labels, track_ids = self.sample_rois_pytorch(all_rois, gt_boxes, fg_rois_per_image, rois_per_image)
+        gt_boxes_append = gt_boxes.new_zeros((gt_boxes.size()[0], gt_boxes.size()[1], 5))
+        gt_boxes_append[:, :, 1:5] = gt_boxes[:, :, :4]
+        for ibatch in range(len(gt_boxes)):
+            gt_boxes_append[ibatch, :, 0] = ibatch
+        gen_temp_tpls = []
+        # TODO here we do not use rpn rois, but directly sample from GTs.
+        all_rois = None
+        for i in range(cfg.SIAMESE.TEMPLATE_GEN_FROM_GT_ITERS):
+            # Include ground-truth boxes in the set of candidate rois
+            if all_rois is None:
+                all_rois = self.randomize_boxes(gt_boxes_append, max_w, max_h)
+            else:
+                # Use rpn rois + GTs boxes.
+                all_rois = torch.cat([all_rois, gt_boxes_append], 1)
+
+            rois, labels, track_ids = self.sample_rois_pytorch(all_rois, gt_boxes, fg_rois_per_image, rois_per_image)
+            gen_temp_tpls.append((rois, labels, track_ids))
+        rois = torch.cat([gen[0] for gen in gen_temp_tpls], 1)
+        labels = torch.cat([gen[1] for gen in gen_temp_tpls], 1)
+        track_ids = torch.cat([gen[2] for gen in gen_temp_tpls], 1)
         return rois, labels, track_ids
 
     def sample_rois_pytorch(self, all_rois, gt_boxes, fg_rois_per_image, rois_per_image):
