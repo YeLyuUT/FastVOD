@@ -125,6 +125,10 @@ def parse_args():
                       help='whether to save model after every epoch.',
                       action='store_true')
 
+  parser.add_argument('--snapshot_suffix',dest='snapshot_suffix',
+                      help='suffix for save model name',
+                      default='', type=str)
+
   args = parser.parse_args()
   return args
 
@@ -493,7 +497,7 @@ if __name__ == '__main__':
         pass
     name_prefix = name_prefix+'_siam'
     if not args.no_save:
-        save_name = os.path.join(output_dir, name_prefix + '_{}_{}_{}.pth'.format(args.session, epoch, step))
+        save_name = os.path.join(output_dir, (name_prefix + '_{}_{}_{}'+args.snapshot_suffix+'.pth').format(args.session, epoch, step))
         save_checkpoint({
           'session': args.session,
           'epoch': epoch + 1,
