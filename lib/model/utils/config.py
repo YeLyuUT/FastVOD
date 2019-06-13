@@ -282,12 +282,12 @@ __C.TEST.SIAMESE_RPN_NMS_THRESH =0.7
 __C.TEST.SIAMESE_RPN_MIN_SIZE =8
 
 # Template selection threshold.
-__C.SIAMESE.TEMPLATE_SEL_FG_THRESH = 0.6
+__C.SIAMESE.TEMPLATE_SEL_FG_THRESH = 0.7
 # We do not need negative examples. So TEMPLATE_SEL_BG_THRESH_LO==TEMPLATE_SEL_BG_THRESH_HI
 __C.SIAMESE.TEMPLATE_SEL_BG_THRESH_LO = 0.1
-__C.SIAMESE.TEMPLATE_SEL_BG_THRESH_HI = 0.1
+__C.SIAMESE.TEMPLATE_SEL_BG_THRESH_HI = 0.01
 __C.SIAMESE.TEMPLATE_SEL_BATCH_SIZE = 64
-# Threshold used to select class template.
+# Threshold used to select class template for tracking.
 __C.SIAMESE.TEMPLATE_SEL_CLS_THRESH = 0.8
 # The weight kernel size of the template.
 __C.SIAMESE.TEMPLATE_SZ = 3
@@ -303,7 +303,7 @@ __C.SIAMESE.RPN_POSITIVE_OVERLAP = 0.6
 # Select training samples for siameseRPN loss. RPN_NEGATIVE_OVERLAP_LO < IOU < RPN_NEGATIVE_OVERLAP_HI: negative example
 __C.SIAMESE.RPN_NEGATIVE_OVERLAP_HI = 0.4
 __C.SIAMESE.RPN_NEGATIVE_OVERLAP_LO = 0.01
-# This should be 1.0. As we only have positive training samples.
+# This should be 1.0. As we only propose positive training samples.
 __C.SIAMESE.FG_FRACTION = 1.0
 # SIAMESE.CROP_TYPE can be one of ('roi_align','center_crop')
 __C.SIAMESE.CROP_TYPE = 'center_crop'
