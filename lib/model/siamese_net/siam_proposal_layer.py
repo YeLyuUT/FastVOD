@@ -145,8 +145,12 @@ class _SiamProposalLayer(nn.Module):
             # 6. apply nms (e.g. threshold = 0.7)
             # 7. take after_nms_topN (e.g. 300)
             # 8. return the top proposals (-> RoIs top)
-
-            keep_idx_i = nms(torch.cat((proposals_single, scores_single), 1), nms_thresh, force_cpu=not cfg.USE_GPU_NMS)
+            try:
+                keep_idx_i = nms(torch.cat((proposals_single, scores_single), 1), nms_thresh, force_cpu=not cfg.USE_GPU_NMS)
+            except:
+                print('proposals_single:',proposals_single)
+                print('scores_single:',scores_single)
+                raise
             keep_idx_i = keep_idx_i.long().view(-1)
 
             if post_nms_topN > 0:
