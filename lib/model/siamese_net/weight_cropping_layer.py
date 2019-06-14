@@ -18,7 +18,7 @@ class weight_crop_layer(nn.Module):
             self.crop_kernel = RoIAlign(cfg.SIAMESE.TEMPLATE_SZ, cfg.SIAMESE.TEMPLATE_SZ, spatial_scale)
             #self.spatial_shrinkage_layer = nn.Conv2d(din, din, kernel_size=cfg.SIAMESE.TEMPLATE_SZ, stride=cfg.SIAMESE.TEMPLATE_SZ,groups=din)
         elif cfg.SIAMESE.CROP_TYPE == 'center_crop':
-            self.h_sz = (cfg.SIAMESE.TEMPLATE_SZ - 1) / 2.0
+            self.hf_sz = (cfg.SIAMESE.TEMPLATE_SZ - 1) / 2.0
             self.stride = 1.0 / spatial_scale
             self.crop_kernel = RoIAlign(cfg.SIAMESE.TEMPLATE_SZ, cfg.SIAMESE.TEMPLATE_SZ, spatial_scale)
         else:
@@ -54,10 +54,10 @@ class weight_crop_layer(nn.Module):
         elif cfg.SIAMESE.CROP_TYPE == 'center_crop':
             rois_cntr_x = (rois[:,1]+rois[:,3])/2.0
             rois_cntr_y = (rois[:,2]+rois[:,4])/2.0
-            rois[:, 1] = rois_cntr_x - self.h_sz * self.stride
-            rois[:, 3] = rois_cntr_x + self.h_sz * self.stride
-            rois[:, 2] = rois_cntr_y - self.h_sz * self.stride
-            rois[:, 4] = rois_cntr_y + self.h_sz * self.stride
+            rois[:, 1] = rois_cntr_x - (self.hf_sz+0.5) * self.stride
+            rois[:, 3] = rois_cntr_x + (self.hf_sz+0.5) * self.stride
+            rois[:, 2] = rois_cntr_y - (self.hf_sz+0.5) * self.stride
+            rois[:, 4] = rois_cntr_y + (self.hf_sz+0.5) * self.stride
             cropped_feat = self.crop_kernel(feats, rois)
             out = cropped_feat
         else:
