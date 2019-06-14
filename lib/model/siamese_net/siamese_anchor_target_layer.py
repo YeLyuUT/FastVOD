@@ -101,7 +101,7 @@ class _SiamAnchorTargetLayer(nn.Module):
         gt_max_overlaps, _ = torch.max(overlaps, 1)
 
         if not cfg.TRAIN.RPN_CLOBBER_POSITIVES:
-            labels[(max_overlaps<cfg.SIAMESE.RPN_NEGATIVE_OVERLAP_HI) & (max_overlaps>cfg.SIAMESE.RPN_NEGATIVE_OVERLAP_LO)] = 0
+            labels[(max_overlaps<=cfg.SIAMESE.RPN_NEGATIVE_OVERLAP_HI) & (max_overlaps>=cfg.SIAMESE.RPN_NEGATIVE_OVERLAP_LO)] = 0
 
         gt_max_overlaps[gt_max_overlaps==0] = 1e-5
         keep = torch.sum(overlaps.eq(gt_max_overlaps.view(batch_size,1,-1).expand_as(overlaps)), 2)
@@ -113,7 +113,7 @@ class _SiamAnchorTargetLayer(nn.Module):
         labels[max_overlaps >= cfg.SIAMESE.RPN_POSITIVE_OVERLAP] = 1
 
         if cfg.TRAIN.RPN_CLOBBER_POSITIVES:
-            labels[(max_overlaps<cfg.SIAMESE.RPN_NEGATIVE_OVERLAP_HI) & (max_overlaps>cfg.SIAMESE.RPN_NEGATIVE_OVERLAP_LO)] = 0
+            labels[(max_overlaps<=cfg.SIAMESE.RPN_NEGATIVE_OVERLAP_HI) & (max_overlaps>=cfg.SIAMESE.RPN_NEGATIVE_OVERLAP_LO)] = 0
 
         num_fg = int(cfg.TRAIN.RPN_FG_FRACTION * cfg.TRAIN.RPN_BATCHSIZE)
 
