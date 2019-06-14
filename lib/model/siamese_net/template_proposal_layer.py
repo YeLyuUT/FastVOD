@@ -100,10 +100,14 @@ class _TemplateProposalLayer(nn.Module):
                 all_rois = self.randomize_boxes(gt_boxes_append, max_w, max_h)
             else:
                 # Use rpn rois + GTs boxes.
-                all_rois = torch.cat([all_rois, gt_boxes_append], 1)
+                all_rois = torch.cat([all_rois], 1)
 
             rois, labels, track_ids = self.sample_rois_pytorch(all_rois, gt_boxes, fg_rois_per_image, rois_per_image)
             gen_temp_tpls.append((rois, labels, track_ids))
+        ### Add GT here.###
+        rois, labels, track_ids = self.sample_rois_pytorch(gt_boxes_append, gt_boxes, fg_rois_per_image, rois_per_image)
+        gen_temp_tpls.append((rois, labels, track_ids))
+        ###################
         rois = torch.cat([gen[0] for gen in gen_temp_tpls], 1)
         labels = torch.cat([gen[1] for gen in gen_temp_tpls], 1)
         track_ids = torch.cat([gen[2] for gen in gen_temp_tpls], 1)
