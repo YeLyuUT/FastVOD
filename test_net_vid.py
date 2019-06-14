@@ -97,6 +97,9 @@ def parse_args():
   parser.add_argument('--vis', dest='vis',
                       help='visualization mode',
                       action='store_true')
+  parser.add_argument('--det_suffix', dest='det_suffix',
+                      help='suffix for save det name',
+                      default='', type=str)
   args = parser.parse_args()
   return args
 
@@ -304,7 +307,7 @@ if __name__ == '__main__':
   data_iter = iter(dataloader)
 
   _t = {'im_detect': time.time(), 'misc': time.time()}
-  det_file = os.path.join(output_dir, 'detections.pkl')
+  det_file = os.path.join(output_dir, 'detections'+args.det_suffix+'.pkl')
 
   RCNN.eval()
   empty_array = np.transpose(np.array([[],[],[],[],[]]), (1,0))
@@ -354,6 +357,16 @@ if __name__ == '__main__':
               # concatenate siambox and detbox.
               pred_boxes = torch.cat((pred_boxes, pred_siam_bbox), 0)
               scores = torch.cat((scores, siam_scores), 0)
+              #####################
+              #pred_boxes = pred_boxes
+              #scores = scores
+              #####################
+              #pred_boxes = siam_boxes.repeat(1, siam_boxes.size(1) * 31)
+              #pred_boxes = pred_boxes / im_info[0][-1]
+              #####################
+              # pred_boxes = pred_siam_bbox
+              #####################
+              #scores = siam_scores
       else:
           raise ValueError('Error. Should set cfg.TEST.BBOX_REG to True.')
 
