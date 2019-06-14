@@ -29,7 +29,8 @@ SIAMESE:
   ANCHOR_SCALES: [4,8,16,32]
   # Anchor ratios for RPN
   ANCHOR_RATIOS: [0.5,1,2]
-
+  # Use DCN for feature trans.
+  USE_DCN: True
   # Template selection threshold.
   TEMPLATE_SEL_FG_THRESH: 0.7
   # We do not need negative examples. So TEMPLATE_SEL_BG_THRESH_LO==TEMPLATE_SEL_BG_THRESH_HI
