@@ -281,6 +281,8 @@ __C.TEST.SIAMESE_RPN_POST_NMS_TOP_N =300
 __C.TEST.SIAMESE_RPN_NMS_THRESH =0.7
 __C.TEST.SIAMESE_RPN_MIN_SIZE =8
 
+# Whether use deformable conv for feat trans or not.
+__C.SIAMESE.USE_DCN = True
 # Template selection threshold.
 __C.SIAMESE.TEMPLATE_SEL_FG_THRESH = 0.7
 # We do not need negative examples. So TEMPLATE_SEL_BG_THRESH_LO==TEMPLATE_SEL_BG_THRESH_HI

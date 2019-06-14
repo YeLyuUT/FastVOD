@@ -9,9 +9,73 @@ from model.siamese_net.siameseRPN import siameseRPN
 from model.utils.config import cfg
 from model.siamese_net.nms_tracking import trNMS
 from torch.autograd import Variable
+from model.dcn.modules.deform_conv import DeformConv
 from random import shuffle
 
-from model.faster_rcnn.resnet import BasicBlock as block
+class block(nn.Module):
+    def __init__(self, inplanes, planes):
+        super(block, self).__init__()
+        self.conv1 = self.conv3x3(inplanes, planes)
+        self.bn1 = nn.BatchNorm2d(planes)
+        self.relu = nn.ReLU(inplace=True)
+        self.conv2 = self.conv3x3(planes, planes)
+        self.bn2 = nn.BatchNorm2d(planes)
+
+        self.normal_init(self.conv1, 0, 0.01, cfg.TRAIN.TRUNCATED)
+        self.normal_init(self.conv2, 0, 0.01, cfg.TRAIN.TRUNCATED)
+
+        if cfg.SIAMESE.USE_DCN is True:
+            self.conv_offsets_1 = self.conv3x3_offsets(inplanes)
+            self.conv_offsets_2 = self.conv3x3_offsets(planes)
+            self.normal_init(self.conv_offsets_1, 0, 0.01, cfg.TRAIN.TRUNCATED)
+            self.normal_init(self.conv_offsets_2, 0, 0.01, cfg.TRAIN.TRUNCATED)
+
+    def conv3x3(self, inplanes, planes):
+        if cfg.SIAMESE.USE_DCN is False:
+            return nn.Conv2d(inplanes, planes, 3, 1, 1)
+        else:
+            return DeformConv(inplanes, planes, 3, 1, 1)
+
+    def conv3x3_offsets(self, inplanes):
+        return nn.Conv2d(inplanes, 3*3*2, 3, 1, 1, bias=False)
+
+    def forward(self, x):
+        residual = x
+        if cfg.SIAMESE.USE_DCN is True:
+            # deformable convolutions.
+            offsets = self.conv_offsets_1(x)
+            out = self.conv1(x, offsets)
+            out = self.bn1(out)
+            out = self.relu(out)
+
+            offsets = self.conv_offsets_2(x)
+            out = self.conv2(out, offsets)
+            out = self.bn2(out)
+
+            out += residual
+            out = self.relu(out)
+        else:
+            # normal convolutions.
+            out = self.conv1(x)
+            out = self.bn1(out)
+            out = self.relu(out)
+
+            out = self.conv2(out)
+            out = self.bn2(out)
+
+            out += residual
+            out = self.relu(out)
+        return out
+
+    def normal_init(self, m, mean, stddev, truncated=False):
+        """
+        weight initalizer: truncated normal and random normal.
+        """
+        # x is a parameter
+        if truncated:
+          m.weight.data.normal_().fmod_(2).mul_(stddev).add_(mean)  # not a perfect approximation
+        else:
+          m.weight.data.normal_(mean, stddev)
 
 class _siameseRCNN(nn.Module):
     def __init__(self, classes, args):
@@ -25,17 +89,17 @@ class _siameseRCNN(nn.Module):
         self.RCNN.create_architecture()
 
         # Tracking feature branch.
-        self.track_feat_trans = self._make_layer(block, 1024, 1024, 1, stride=1).cuda()
+        self.track_feat_trans = self._make_layer(block, 1024, 1024, 1).cuda()
         # we only support cuda.
         self.siameseRPN_layer = self.siameseRPN_layer.cuda()
         self.RCNN = self.RCNN.cuda()
         self.nms = trNMS()
 
-    def _make_layer(self, block, inplanes, planes, blocks, stride=1):
+    def _make_layer(self, block, inplanes, planes, blocks):
         layers = []
-        layers.append(block(inplanes, planes, stride, None))
+        layers.append(block(inplanes, planes))
         for i in range(1, blocks):
-            layers.append(block(inplanes, planes))
+            layers.append(block(planes, planes))
         return nn.Sequential(*layers)
 
     def forward(self, input):
