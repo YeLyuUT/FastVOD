@@ -55,9 +55,9 @@ class weight_crop_layer(nn.Module):
             rois_cntr_x = (rois[:,1]+rois[:,3])/2.0
             rois_cntr_y = (rois[:,2]+rois[:,4])/2.0
             rois[:, 1] = rois_cntr_x - (self.hf_sz+0.5) * self.stride
-            rois[:, 3] = rois_cntr_x + (self.hf_sz+0.5) * self.stride
+            rois[:, 3] = rois_cntr_x + (self.hf_sz+0.5) * self.stride + 1
             rois[:, 2] = rois_cntr_y - (self.hf_sz+0.5) * self.stride
-            rois[:, 4] = rois_cntr_y + (self.hf_sz+0.5) * self.stride
+            rois[:, 4] = rois_cntr_y + (self.hf_sz+0.5) * self.stride + 1
             cropped_feat = self.crop_kernel(feats, rois)
             out = cropped_feat
         else:
