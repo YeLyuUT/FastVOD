@@ -264,7 +264,7 @@ __C.MOBILENET.DEPTH_MULTIPLIER = 1.
 __C.SIAMESE = edict()
 
 # Anchor scales for RPN
-__C.SIAMESE.ANCHOR_SCALES = [8,16,32]
+__C.SIAMESE.ANCHOR_SCALES = [4,8,16,32]
 # Anchor ratios for RPN
 __C.SIAMESE.ANCHOR_RATIOS = [0.5,1,2]
 
