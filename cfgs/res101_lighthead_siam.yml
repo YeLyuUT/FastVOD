@@ -26,7 +26,7 @@ RESNET:
 
 SIAMESE:
   # Anchor scales for RPN
-  ANCHOR_SCALES: [8,16,32]
+  ANCHOR_SCALES: [4,8,16,32]
   # Anchor ratios for RPN
   ANCHOR_RATIOS: [0.5,1,2]
 
@@ -34,8 +34,9 @@ SIAMESE:
   TEMPLATE_SEL_FG_THRESH: 0.7
   # We do not need negative examples. So TEMPLATE_SEL_BG_THRESH_LO==TEMPLATE_SEL_BG_THRESH_HI
   TEMPLATE_SEL_BG_THRESH_LO: 0.1
-  TEMPLATE_SEL_BG_THRESH_HI: 0.01
-  TEMPLATE_SEL_BATCH_SIZE: 64
+  TEMPLATE_SEL_BG_THRESH_HI: 0.1
+  TEMPLATE_SEL_BATCH_SIZE: 128
+  TEMPLATE_GEN_FROM_GT_ITERS: 1
   # This should be 1.0. As we only propose positive training samples.
   FG_FRACTION: 1.0
   # Threshold used to select class template for tracking.
@@ -52,8 +53,8 @@ SIAMESE:
   # Proposal height and width both need to be greater than RPN_MIN_SIZE (at orig image scale)
   RPN_POSITIVE_OVERLAP: 0.7
   # Select training samples for siameseRPN loss. RPN_NEGATIVE_OVERLAP_LO < IOU < RPN_NEGATIVE_OVERLAP_HI: negative example
-  RPN_NEGATIVE_OVERLAP_HI: 0.4
-  RPN_NEGATIVE_OVERLAP_LO: 0.01
+  RPN_NEGATIVE_OVERLAP_HI: 0.3
+  RPN_NEGATIVE_OVERLAP_LO: 0.0 #0.01
 
   # SIAMESE.CROP_TYPE can be one of ('roi_align','center_crop')
   CROP_TYPE: 'center_crop'
@@ -72,3 +73,4 @@ SIAMESE:
   USE_POS_PRIOR_FOR_SEL: True
   # Detach the siam training features or not.
   DETACH_FEAT: False
+  NORMALIZE_CORRELATION: True
