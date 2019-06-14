@@ -21,14 +21,13 @@ class siameseRPN_one_branch(nn.Module):
         self.anchor_scales = anchor_scales
         self.anchor_ratios = anchor_ratios
         # TODO add expand_factor to cfg.
-        self.expand_factor = 64
+        self.expand_factor = 48
 
         # TODO this may be modified if used for other strides.
         self.feat_stride = cfg.FEAT_STRIDE[0]
 
         # target branch.
         self.RPN_Conv_target = nn.Conv2d(self.din, self.correlation_channel, 3, 1, 1, bias=True)
-        self.target_BN = nn.BatchNorm2d(self.correlation_channel)
         # template branch.
         self.RPN_Conv_template = nn.Conv2d(self.din, self.correlation_channel*self.expand_factor, 3, 1, 1, bias=True)
 
@@ -72,15 +71,38 @@ class siameseRPN_one_branch(nn.Module):
                 if m.bias is not None:
                     m.bias.data.zero_()
 
-        normal_init(self.RPN_Conv_target, 0, 0.01, cfg.TRAIN.TRUNCATED)
-        normal_init(self.RPN_Conv_template, 0, 0.01, cfg.TRAIN.TRUNCATED)
         normal_init(self.RPN_cls_score, 0, 0.01, cfg.TRAIN.TRUNCATED)
         normal_init(self.RPN_bbox_pred, 0, 0.001, cfg.TRAIN.TRUNCATED)
+
+        if cfg.SIAMESE.NORMALIZE_CORRELATION is True:
+            normal_init(self.RPN_Conv_target, 0, 0.01, cfg.TRAIN.TRUNCATED)
+        else:
+            normal_init(self.RPN_Conv_target, 0, 0.0001, cfg.TRAIN.TRUNCATED)
+
+        self._init_score_w_accord_to_target_w(self.expand_factor, self.RPN_Conv_target.weight, self.RPN_Conv_template.weight)
 
         if self.conv_merge_1x1_cls is not None:
             normal_init(self.conv_merge_1x1_cls, 0, 0.01, cfg.TRAIN.TRUNCATED)
         if self.conv_merge_1x1_box is not None:
             normal_init(self.conv_merge_1x1_box, 0, 0.01, cfg.TRAIN.TRUNCATED)
+
+    def _init_score_w_accord_to_target_w(self, n_rep, w_tar, w_tem):
+        ori_sz = w_tem.size()
+        w_tem = w_tem.view(n_rep, -1, w_tem.size(1), w_tem.size(2), w_tem.size(3))
+        for i in range(n_rep / 2):
+            w_tem.data[i, :, :, :, :] = - w_tar.data
+        for i in range(n_rep / 2, n_rep):
+            w_tem.data[i, :, :, :, :] = w_tar.data
+        w_tem = w_tem.view(ori_sz)
+        return w_tem
+
+    def _init_template_w_accord_to_target_w(self, n_rep, w_tar, w_tem):
+        ori_sz = w_tem.size()
+        w_tem = w_tem.view(n_rep, -1, w_tem.size(1), w_tem.size(2), w_tem.size(3))
+        for i in range(n_rep):
+            w_tem.data[i, :, :, :, :] = w_tar.data
+        w_tem = w_tem.view(ori_sz)
+        return w_tem
 
     @staticmethod
     def reshape(x, d):
@@ -110,7 +132,13 @@ class siameseRPN_one_branch(nn.Module):
         H = target_feat.size(2)
         W = target_feat.size(3)
 
-        out = 0.1*nn.functional.conv2d(
+        if cfg.SIAMESE.NORMALIZE_CORRELATION is True:
+            tmp_sz = template_feat.size()
+            template_feat = template_feat.view(template_feat.size(0), -1)
+            template_feat = template_feat / torch.norm(template_feat, p=2, dim=1, keepdim=True)
+            template_feat = template_feat.view(tmp_sz)
+
+        out = nn.functional.conv2d(
             target_feat,
             template_feat,
             bias=None,
@@ -142,7 +170,13 @@ class siameseRPN_one_branch(nn.Module):
         H = target_feat.size(2)
         W = target_feat.size(3)
 
-        out = 0.1*nn.functional.conv2d(
+        if cfg.SIAMESE.NORMALIZE_CORRELATION is True:
+            tmp_sz = template_feat.size()
+            template_feat = template_feat.view(template_feat.size(0), -1)
+            template_feat = template_feat / torch.norm(template_feat, p=2, dim=1, keepdim=True)
+            template_feat = template_feat.view(tmp_sz)
+
+        out = nn.functional.conv2d(
             target_feat,
             template_feat,
             bias=None,
@@ -175,7 +209,7 @@ class siameseRPN_one_branch(nn.Module):
         H = target_feat.size(2)
         W = target_feat.size(3)
 
-        out = 0.1*nn.functional.conv2d(
+        out = nn.functional.conv2d(
             target_feat,
             template_feat,
             bias=None,
@@ -216,7 +250,7 @@ class siameseRPN_one_branch(nn.Module):
 
         # target branch.
         target_feat = self.RPN_Conv_target(target_feat)
-        target_feat = self.target_BN(target_feat)
+
         # template branch.
         template_feat = self.RPN_Conv_template(template_feat)
 
