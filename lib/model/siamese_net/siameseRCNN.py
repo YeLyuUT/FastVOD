@@ -19,8 +19,8 @@ class _siameseRCNN(nn.Module):
         self.RCNN = _fasterRCNN(classes, 101, pretrained=True, class_agnostic=args.class_agnostic, b_save_mid_convs=True)
         self.t_t_prop_layer = _TemplateTargetProposalLayer()
         self.siameseRPN_layer = siameseRPN( input_dim = 1024,
-                                            anchor_scales = cfg.ANCHOR_SCALES,
-                                            anchor_ratios = cfg.ANCHOR_RATIOS,
+                                            anchor_scales = cfg.SIAMESE.ANCHOR_SCALES,
+                                            anchor_ratios = cfg.SIAMESE.ANCHOR_RATIOS,
                                             use_separable_correlation = False)
         self.RCNN.create_architecture()
 
