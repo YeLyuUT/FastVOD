@@ -4,8 +4,8 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 from model.faster_rcnn.faster_rcnn import _fasterRCNN
 from model.siamese_net.template_target_proposal_layer import _TemplateTargetProposalLayer
-from model.siamese_net.siameseRPN import siameseRPN
-#from model.siamese_net.siameseRPN_one_branch import siameseRPN_one_branch as siameseRPN
+#from model.siamese_net.siameseRPN import siameseRPN
+from model.siamese_net.siameseRPN_one_branch import siameseRPN_one_branch as siameseRPN
 from model.utils.config import cfg
 from model.siamese_net.nms_tracking import trNMS
 from torch.autograd import Variable
@@ -89,7 +89,7 @@ class _siameseRCNN(nn.Module):
         self.RCNN.create_architecture()
 
         # Tracking feature branch.
-        self.track_feat_trans = self._make_layer(block, 1024, 1024, 1).cuda()
+        self.track_feat_trans = self._make_layer(block, 1024, 1024, 2).cuda()
         # we only support cuda.
         self.siameseRPN_layer = self.siameseRPN_layer.cuda()
         self.RCNN = self.RCNN.cuda()
@@ -212,6 +212,8 @@ class _siameseRCNN(nn.Module):
         rois_label_1 = self.RCNN(im_data_1, im_info_1, gt_boxes_1[:,:,:5], num_boxes_1)
 
         # c3_1, c4_1, c5_1 = RCNN.c_3, RCNN.c_4, RCNN.c_5
+        if cfg.TRAIN.SIAMESE_ONLY is True:
+            self.RCNN.Conv_feat_track.detach_()
         conv4_feat_1 = self.track_feat_trans(self.RCNN.Conv_feat_track)
         rpn_rois_1 = self.RCNN.rpn_rois
 
@@ -222,6 +224,8 @@ class _siameseRCNN(nn.Module):
         rois_label_2 = self.RCNN(im_data_2, im_info_2, gt_boxes_2[:,:,:5], num_boxes_2)
 
         # c3_2, c4_2, c5_2 = RCNN.c_3, RCNN.c_4, RCNN.c_5
+        if cfg.TRAIN.SIAMESE_ONLY is True:
+            self.RCNN.Conv_feat_track.detach_()
         conv4_feat_2 = self.track_feat_trans(self.RCNN.Conv_feat_track)
         rpn_rois_2 = self.RCNN.rpn_rois
 
@@ -239,6 +243,7 @@ class _siameseRCNN(nn.Module):
         # For memory issue, we randomly sample tuples for training.
         shuffle(rtv_training_tuples)
         rtv_training_tuples = rtv_training_tuples[:cfg.TRAIN.SIAMESE_MAX_TRACKING_OBJ]
+        #print('rtv_training_tuples[0][2]:', rtv_training_tuples[0][2])
         for tpl_id in range(len(rtv_training_tuples)):
             target_feat, template_weights, target_gt_boxes = rtv_training_tuples[tpl_id]
             input_v = (target_feat,
@@ -279,5 +284,10 @@ class _siameseRCNN(nn.Module):
         rpn_loss_box = rpn_loss_box.unsqueeze(0)
         RCNN_loss_cls = RCNN_loss_cls.unsqueeze(0)
         RCNN_loss_bbox = RCNN_loss_bbox.unsqueeze(0)
+        if cfg.TRAIN.SIAMESE_ONLY is True:
+            rpn_loss_cls = rpn_loss_cls.new_zeros(1)
+            rpn_loss_box = rpn_loss_cls.new_zeros(1)
+            RCNN_loss_cls = RCNN_loss_cls.new_zeros(1)
+            RCNN_loss_bbox = RCNN_loss_bbox.new_zeros(1)
 
         return rois_label, siamRPN_loss_cls, siamRPN_loss_box, rpn_loss_cls, rpn_loss_box, RCNN_loss_cls, RCNN_loss_bbox
