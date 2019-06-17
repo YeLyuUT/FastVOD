@@ -50,7 +50,7 @@ class _TemplateProposalLayer(nn.Module):
             vals[nzrs[0]] = max
         return vals.view(sz)
 
-    def randomize_boxes(self, boxes, max_w, max_h, c_std=0.1, s_std=0.1):
+    def randomize_boxes(self, boxes, max_w, max_h, c_std=0.5, s_std=0.7):
         '''
 
         :param boxes: size of (N, n, 5)
@@ -66,8 +66,8 @@ class _TemplateProposalLayer(nn.Module):
         h = (new_boxes[:, :, 4] - new_boxes[:, :, 2])
         new_x = x.new_zeros(x.size()).uniform_(-c_std, c_std) * w + x
         new_y = y.new_zeros(y.size()).uniform_(-c_std, c_std) * h + y
-        new_w = w.new_zeros(w.size()).uniform_(-s_std, s_std) * w + w
-        new_h = h.new_zeros(h.size()).uniform_(-s_std, s_std) * h + h
+        new_w = w.new_zeros(w.size()).uniform_(-s_std, s_std).exp() * w
+        new_h = h.new_zeros(h.size()).uniform_(-s_std, s_std).exp() * h
 
         new_x1 = new_x - new_w / 2.0
         new_y1 = new_y - new_h / 2.0
@@ -188,7 +188,9 @@ class _TemplateProposalLayer(nn.Module):
                 bg_rois_per_this_image = rois_per_image
                 fg_rois_per_this_image = 0
             else:
-                raise ValueError("bg_num_rois = 0 and fg_num_rois = 0, this should not happen!")
+                print('overlaps:', overlaps.shape)
+                print('max_overlaps:', max_overlaps)
+                raise ValueError("template proposal layer bg_num_rois = 0 and fg_num_rois = 0, this should not happen!")
 
             # The indices that we're selecting (both fg and bg)
             keep_inds = torch.cat([fg_inds, bg_inds], 0)
