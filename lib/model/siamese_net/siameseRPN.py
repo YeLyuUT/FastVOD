@@ -11,7 +11,6 @@ from model.siamese_net.siam_proposal_layer import _SiamProposalLayer
 #from model.rpn.anchor_target_layer import _AnchorTargetLayer
 from model.siamese_net.siamese_anchor_target_layer import _SiamAnchorTargetLayer as _AnchorTargetLayer
 from model.utils.net_utils import _smooth_l1_loss
-import math
 
 
 class siameseRPN(nn.Module):
@@ -92,8 +91,8 @@ class siameseRPN(nn.Module):
             normal_init(self.RPN_Conv_cls, 0, 0.01, cfg.TRAIN.TRUNCATED)
             normal_init(self.RPN_Conv_bbox, 0, 0.001, cfg.TRAIN.TRUNCATED)
         else:
-            normal_init(self.RPN_Conv_cls, 0, 0.0001, cfg.TRAIN.TRUNCATED)
-            normal_init(self.RPN_Conv_bbox, 0, 0.0001, cfg.TRAIN.TRUNCATED)
+            normal_init(self.RPN_Conv_cls, 0, 0.01, cfg.TRAIN.TRUNCATED)
+            normal_init(self.RPN_Conv_bbox, 0, 0.001, cfg.TRAIN.TRUNCATED)
         #normal_init(self.RPN_cls_score, 0, 0.01, cfg.TRAIN.TRUNCATED)
         #normal_init(self.RPN_bbox_pred, 0, 0.001, cfg.TRAIN.TRUNCATED)
         self._init_score_w_accord_to_target_w(self.nc_score_out, self.RPN_Conv_cls.weight, self.RPN_cls_score.weight)
@@ -151,6 +150,7 @@ class siameseRPN(nn.Module):
         W = target_feat.size(3)
 
         # normalize target feature.
+        '''
         norm_target_feat = (target_feat*target_feat)
         norm_w = target_feat.new_ones(1, target_feat.size(1), template_feat.size(-2), template_feat.size(-1), requires_grad=False)
         norm_sum = nn.functional.conv2d(
@@ -160,8 +160,9 @@ class siameseRPN(nn.Module):
             stride=1,
             padding=int((template_feat.size(2) - 1) / 2),
             dilation=1,
-            groups=1).sqrt()
+            groups=1).sqrt().detach()
         target_feat = 32*target_feat/norm_sum
+        '''
 
         if cfg.SIAMESE.NORMALIZE_CORRELATION is True:
             tmp_sz = template_feat.size()
@@ -301,8 +302,8 @@ class siameseRPN(nn.Module):
             rpn_cls_score = self.cross_correlation(target_feat_cls, template_feat_cls, self.bias_cls)
             rpn_bbox_pred = self.cross_correlation(target_feat_bbox, template_feat_bbox, self.bias_bbox)
 
-        #rpn_cls_score = rpn_cls_score*0.1
-        #rpn_bbox_pred = rpn_bbox_pred*0.1
+        rpn_cls_score = rpn_cls_score*0.1
+        rpn_bbox_pred = rpn_bbox_pred*0.1
         # adjust
         rpn_bbox_pred = self.RPN_bbox_adjust(rpn_bbox_pred)
 
