@@ -8,7 +8,8 @@ import numpy as np
 from model.utils.config import cfg
 #from model.rpn.proposal_layer import _ProposalLayer
 from model.siamese_net.siam_proposal_layer import _SiamProposalLayer
-from model.rpn.anchor_target_layer import _AnchorTargetLayer
+#from model.rpn.anchor_target_layer import _AnchorTargetLayer
+from model.siamese_net.siamese_anchor_target_layer import _SiamAnchorTargetLayer as _AnchorTargetLayer
 from model.utils.net_utils import _smooth_l1_loss
 
 
@@ -21,15 +22,15 @@ class siameseRPN_one_branch(nn.Module):
         self.anchor_scales = anchor_scales
         self.anchor_ratios = anchor_ratios
         # TODO add expand_factor to cfg.
-        self.expand_factor = 48
+        self.expand_factor = 32
 
         # TODO this may be modified if used for other strides.
-        self.feat_stride = cfg.FEAT_STRIDE[0]
+        self.feat_stride = 1.0/cfg.SIAMESE.WEIGHT_CROPPING_LAYER_SCALE
 
         # target branch.
-        self.RPN_Conv_target = nn.Conv2d(self.din, self.correlation_channel, 3, 1, 1, bias=True)
+        self.RPN_Conv_target = nn.Conv2d(self.din, self.correlation_channel, 3, 1, 1, bias=False)
         # template branch.
-        self.RPN_Conv_template = nn.Conv2d(self.din, self.correlation_channel*self.expand_factor, 3, 1, 1, bias=True)
+        self.RPN_Conv_template = nn.Conv2d(self.din, self.correlation_channel*self.expand_factor, 3, 1, 1, bias=False)
 
         # prediction branch.
         self.nc_score_out = len(self.anchor_scales) * len(self.anchor_ratios) * 2  # 2(bg/fg) * 9 (anchors)
@@ -54,7 +55,7 @@ class siameseRPN_one_branch(nn.Module):
             self.conv_merge_1x1_cls = nn.Conv2d(self.correlation_channel, 1, 1, bias=False)
             self.conv_merge_1x1_box = nn.Conv2d(self.correlation_channel, 1, 1, bias=False)
 
-        self.bias = nn.Parameter(torch.zeros(self.expand_factor, 1, 1), requires_grad=True)
+        self.bias = None #nn.Parameter(torch.zeros(self.expand_factor, 1, 1), requires_grad=True)
 
         self._init_weights()
 
@@ -72,12 +73,12 @@ class siameseRPN_one_branch(nn.Module):
                     m.bias.data.zero_()
 
         normal_init(self.RPN_cls_score, 0, 0.01, cfg.TRAIN.TRUNCATED)
-        normal_init(self.RPN_bbox_pred, 0, 0.001, cfg.TRAIN.TRUNCATED)
+        normal_init(self.RPN_bbox_pred, 0, 0.01, cfg.TRAIN.TRUNCATED)
 
         if cfg.SIAMESE.NORMALIZE_CORRELATION is True:
             normal_init(self.RPN_Conv_target, 0, 0.01, cfg.TRAIN.TRUNCATED)
         else:
-            normal_init(self.RPN_Conv_target, 0, 0.0001, cfg.TRAIN.TRUNCATED)
+            normal_init(self.RPN_Conv_target, 0, 0.001, cfg.TRAIN.TRUNCATED)
 
         self._init_score_w_accord_to_target_w(self.expand_factor, self.RPN_Conv_target.weight, self.RPN_Conv_template.weight)
 
@@ -263,6 +264,7 @@ class siameseRPN_one_branch(nn.Module):
         else:
             rpn_feat = self.cross_correlation(target_feat, template_feat, self.bias)
 
+        rpn_feat = rpn_feat*0.1
         rpn_cls_score = self.RPN_cls_score(rpn_feat)
         rpn_bbox_pred = self.RPN_bbox_pred(rpn_feat)
 
