@@ -11,6 +11,9 @@ TRAIN:
   WEIGHT_DECAY: 0.0001
   DOUBLE_BIAS: False
   LEARNING_RATE: 0.001
+  # siamese related.
+  SIAMESE_ONLY: False
+  SIAMESE_MAX_TRACKING_OBJ: 15
 TEST:
   HAS_RPN: True
 POOLING_SIZE: 7
@@ -29,15 +32,15 @@ SIAMESE:
   ANCHOR_SCALES: [4,8,16,32]
   # Anchor ratios for RPN
   ANCHOR_RATIOS: [0.5,1,2]
-  # Use DCN for feature trans.
-  USE_DCN: True
+
   # Template selection threshold.
   TEMPLATE_SEL_FG_THRESH: 0.7
   # We do not need negative examples. So TEMPLATE_SEL_BG_THRESH_LO==TEMPLATE_SEL_BG_THRESH_HI
   TEMPLATE_SEL_BG_THRESH_LO: 0.1
   TEMPLATE_SEL_BG_THRESH_HI: 0.1
   TEMPLATE_SEL_BATCH_SIZE: 128
-  TEMPLATE_GEN_FROM_GT_ITERS: 1
+  TEMPLATE_GEN_FROM_GT_ITERS: 3
+
   # This should be 1.0. As we only propose positive training samples.
   FG_FRACTION: 1.0
   # Threshold used to select class template for tracking.
@@ -66,12 +69,14 @@ SIAMESE:
 
   # Penalty control.
   # TODO this may need further tuning.
-  HANNING_WINDOW_WEIGHT: 1.0
+  HANNING_WINDOW_WEIGHT: 0.4
   # The hanning window size is of instance size*HANNING_WINDOW_SIZE_FACTOR.
   HANNING_WINDOW_SIZE_FACTOR: 0.6
-  PANELTY_K: 0.4
+  PANELTY_K: 0.15
   # Whether to use distance to penalize rpn box selection.
   USE_POS_PRIOR_FOR_SEL: True
   # Detach the siam training features or not.
   DETACH_FEAT: False
-  NORMALIZE_CORRELATION: True
+  NORMALIZE_CORRELATION: False
+  # Use DCN for feature trans.
+  USE_DCN: False
