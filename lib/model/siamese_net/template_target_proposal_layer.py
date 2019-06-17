@@ -69,7 +69,7 @@ class _TemplateTargetProposalLayer(nn.Module):
                             target_gt_boxes.append(gt_box_2.view(1, -1))
                             break
                 if not has_gt:
-                    target_gt_boxes.append(gt_box_2.new_zeros(1, 6))
+                    target_gt_boxes.append(target_feat.new_zeros(1, 6))
 
             target_gt_boxes = torch.stack(target_gt_boxes)
 
