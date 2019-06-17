@@ -51,7 +51,7 @@ class trNMS(nn.Module):
         #for a,b,c in zip(scores[:,:,1].view(-1,1), penalty_score.view(-1,1), hanning_score.view(-1,1)):
         #    print(a,',',b,',',c)
         # TODO change back.
-        penalty_window = scores[:,:,1]+hanning_score*self.HANNING_WINDOW_WEIGHT#+penalty_score
+        penalty_window = scores[:,:,1]*penalty_score+hanning_score*self.HANNING_WINDOW_WEIGHT#+penalty_score
         #penalty_window = scores[:,:,1]
         #penalty_window = hanning_score
         #penalty_window = penalty_score
@@ -63,9 +63,6 @@ class trNMS(nn.Module):
         for i in range(rpn_rois.size(0)):
             sel_rpn_rois[i,:] = rpn_rois[i,inds[i],1:]
             sel_scores[i,:] = scores[i,inds[i],1:]
-            # TODO remove assertion.
-            assert rpn_rois[i,inds[i],0] == i
-            assert scores[i, inds[i], 0] == i
         return sel_rpn_rois, sel_scores
 
     def get_rois_vals(self, rois):
