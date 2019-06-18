@@ -294,21 +294,24 @@ class siameseRPN_one_branch(nn.Module):
             rpn_label = rpn_data[0].view(batch_size, -1)
 
             rpn_keep = Variable(rpn_label.view(-1).ne(-1).nonzero().view(-1))
-            rpn_cls_score = torch.index_select(rpn_cls_score.view(-1, 2), 0, rpn_keep)
-            rpn_label = torch.index_select(rpn_label.view(-1), 0, rpn_keep.data)
-            rpn_label = Variable(rpn_label.long())
-            self.rpn_loss_cls = F.cross_entropy(rpn_cls_score, rpn_label)
-            fg_cnt = torch.sum(rpn_label.data.ne(0))
+            if len(rpn_keep) > 0:
+                rpn_cls_score = torch.index_select(rpn_cls_score.view(-1, 2), 0, rpn_keep)
+                rpn_label = torch.index_select(rpn_label.view(-1), 0, rpn_keep.data)
+                rpn_label = Variable(rpn_label.long())
+                self.rpn_loss_cls = F.cross_entropy(rpn_cls_score, rpn_label)
+                fg_cnt = torch.sum(rpn_label.data.ne(0))
 
-            rpn_bbox_targets, rpn_bbox_inside_weights, rpn_bbox_outside_weights = rpn_data[1:]
+                rpn_bbox_targets, rpn_bbox_inside_weights, rpn_bbox_outside_weights = rpn_data[1:]
 
-            # compute bbox regression loss
-            rpn_bbox_inside_weights = Variable(rpn_bbox_inside_weights)
-            rpn_bbox_outside_weights = Variable(rpn_bbox_outside_weights)
-            rpn_bbox_targets = Variable(rpn_bbox_targets)
+                # compute bbox regression loss
+                rpn_bbox_inside_weights = Variable(rpn_bbox_inside_weights)
+                rpn_bbox_outside_weights = Variable(rpn_bbox_outside_weights)
+                rpn_bbox_targets = Variable(rpn_bbox_targets)
 
-            self.rpn_loss_box = _smooth_l1_loss(rpn_bbox_pred, rpn_bbox_targets, rpn_bbox_inside_weights,
-                                                rpn_bbox_outside_weights, sigma=3, dim=[1, 2, 3])
+                self.rpn_loss_box = _smooth_l1_loss(rpn_bbox_pred, rpn_bbox_targets, rpn_bbox_inside_weights,
+                                                    rpn_bbox_outside_weights, sigma=3, dim=[1, 2, 3])
+            else:
+                self.rpn_loss_cls, self.rpn_loss_box = None, None
         return rois, scores, self.rpn_loss_cls, self.rpn_loss_box
 
 
