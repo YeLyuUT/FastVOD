@@ -89,7 +89,7 @@ class _siameseRCNN(nn.Module):
         self.RCNN.create_architecture()
 
         # Tracking feature branch.
-        self.track_feat_trans = self._make_layer(block, 1024, 1024, 2).cuda()
+        self.track_feat_trans = self._make_layer(block, 1024, 1024, 1).cuda()
         # we only support cuda.
         self.siameseRPN_layer = self.siameseRPN_layer.cuda()
         self.RCNN = self.RCNN.cuda()
@@ -240,12 +240,15 @@ class _siameseRCNN(nn.Module):
         scores = None
         siamRPN_loss_cls = 0
         siamRPN_loss_box = 0
-        # For memory issue, we randomly sample tuples for training.
         shuffle(rtv_training_tuples)
-        rtv_training_tuples = rtv_training_tuples[:cfg.TRAIN.SIAMESE_MAX_TRACKING_OBJ]
-        #print('rtv_training_tuples[0][2]:', rtv_training_tuples[0][2])
         for tpl_id in range(len(rtv_training_tuples)):
             target_feat, template_weights, target_gt_boxes = rtv_training_tuples[tpl_id]
+            # For memory issue, we randomly sample objects for training if there are too many objects to track.
+            if target_gt_boxes.size(0) > cfg.TRAIN.SIAMESE_MAX_TRACKING_OBJ:
+                perm = torch.randperm(target_gt_boxes.size(0))
+                idx = perm[:cfg.TRAIN.SIAMESE_MAX_TRACKING_OBJ]
+                target_gt_boxes = target_gt_boxes[idx]
+                template_weights = template_weights[idx]
             input_v = (target_feat,
                        im_info_2[tpl_id:tpl_id + 1],
                        template_weights,
