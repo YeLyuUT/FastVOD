@@ -42,7 +42,8 @@ class _TemplateTargetProposalLayer(nn.Module):
             feats1.size(1),
             cfg.SIAMESE.TEMPLATE_SZ,
             cfg.SIAMESE.TEMPLATE_SZ)
-
+        #print('template_weights_all:',template_weights_all.shape)
+        #print('template_weights_all:', template_weights_all[0][0])
         # for each item, it is (target_feat, template_weights, gt_boxes for each weight).
         # target gt_boxes should be of shape (n, 1, 6).
         rtv_training_tuples = []

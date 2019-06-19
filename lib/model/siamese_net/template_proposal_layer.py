@@ -50,7 +50,7 @@ class _TemplateProposalLayer(nn.Module):
             vals[nzrs[0]] = max
         return vals.view(sz)
 
-    def randomize_boxes(self, boxes, max_w, max_h, c_std=0.5, s_std=0.7):
+    def randomize_boxes(self, boxes, max_w, max_h, c_std=0.3, s_std=0.5):
         '''
 
         :param boxes: size of (N, n, 5)
