@@ -139,16 +139,12 @@ class imagenetVID_1_vid(imdb):
         if self._image_set == 'train':
             image_set_file = os.path.join(self._data_path, 'ImageSets', 'trainr_VID_TRA_1_vid.pkl')
             image_index = []
+            '''
             if os.path.exists(image_set_file):
                 with open(image_set_file, 'r') as f:
-                    '''
-                    data = f.readlines()
-                    for line in data:
-                        if line != '':
-                            image_index.append(line)
-                    '''
                     image_index, structured_indexes = pickle.load(f)
                     return image_index, structured_indexes
+            '''
 
             # We use vid_indexes to contain all video folders for each category.
             vid_indexes = []
@@ -175,15 +171,17 @@ class imagenetVID_1_vid(imdb):
                 cat_holder = []
                 if vid_idx==vid_indexes[0]:
                     for vid_id in vid_idx:
-                        vid_holder = []
-                        flist = os.listdir(vid_id)
-                        nfiles = len(flist)
-                        for iid in range(self._gap // 2, nfiles, self._gap):
-                            image_indexes.append(os.path.join(vid_id, '%06d' % (iid)))
-                            vid_holder.append(idx_counter)
-                            idx_counter += 1
-                        cat_holder.append(vid_holder)
-                        break
+                        #if vid_id is vid_idx[0]:
+                        if vid_id is vid_idx[82]:
+                            vid_holder = []
+                            flist = os.listdir(vid_id)
+                            nfiles = len(flist)
+                            for iid in range(self._gap // 2, nfiles, self._gap):
+                                image_indexes.append(os.path.join(vid_id, '%06d' % (iid)))
+                                vid_holder.append(idx_counter)
+                                idx_counter += 1
+                            cat_holder.append(vid_holder)
+                            break
                 structured_indexes.append(cat_holder)
 
             with open(image_set_file, 'w') as f:
@@ -212,11 +210,13 @@ class imagenetVID_1_vid(imdb):
         cache_file = os.path.join(self.cache_path, self.name + '_gt_roidb.pkl')
         print(cache_file)
 
+        '''
         if os.path.exists(cache_file):
             with open(cache_file, 'rb') as fid:
                 roidb = pickle.load(fid)
             print('{} gt roidb loaded from {}'.format(self.name, cache_file))
             return roidb
+        '''
 
         gt_roidb = []
         for img_idx in self.image_index:
