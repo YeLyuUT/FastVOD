@@ -85,11 +85,11 @@ class _siameseRCNN(nn.Module):
         self.siameseRPN_layer = siameseRPN( input_dim = 1024,
                                             anchor_scales = cfg.SIAMESE.ANCHOR_SCALES,
                                             anchor_ratios = cfg.SIAMESE.ANCHOR_RATIOS,
-                                            use_separable_correlation = False)
+                                            use_separable_correlation = cfg.SIAMESE.USE_SEPARABLE_CORRELATION)
         self.RCNN.create_architecture()
 
         # Tracking feature branch.
-        self.track_feat_trans = self._make_layer(block, 1024, 1024, 1).cuda()
+        self.track_feat_trans = self._make_layer(block, 1024, 1024, 2).cuda()
         # we only support cuda.
         self.siameseRPN_layer = self.siameseRPN_layer.cuda()
         self.RCNN = self.RCNN.cuda()
