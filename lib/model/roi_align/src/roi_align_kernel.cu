@@ -39,9 +39,13 @@ extern "C" {
             // Force malformed ROIs to be 1x1
             float roi_width = fmaxf(roi_end_w - roi_start_w + 1., 0.);
             float roi_height = fmaxf(roi_end_h - roi_start_h + 1., 0.);
-            float bin_size_h = roi_height / (aligned_height - 1.);
-            float bin_size_w = roi_width / (aligned_width - 1.);
-
+            float bin_size_h = 0;
+            float bin_size_w = 0;
+            if (aligned_height>1 && aligned_width>1)
+            {
+                bin_size_h = roi_height / (aligned_height - 1.);
+                bin_size_w = roi_width / (aligned_width - 1.);
+            }
             float h = (float)(ph) * bin_size_h + roi_start_h;
             float w = (float)(pw) * bin_size_w + roi_start_w;
 
@@ -114,8 +118,13 @@ extern "C" {
             // Force malformed ROIs to be 1x1
             float roi_width = fmaxf(roi_end_w - roi_start_w + 1., 0.);
             float roi_height = fmaxf(roi_end_h - roi_start_h + 1., 0.);
-            float bin_size_h = roi_height / (aligned_height - 1.);
-            float bin_size_w = roi_width / (aligned_width - 1.);
+            float bin_size_h = 0;
+            float bin_size_w = 0;
+            if (aligned_height>1 && aligned_width>1)
+            {
+                bin_size_h = roi_height / (aligned_height - 1.);
+                bin_size_w = roi_width / (aligned_width - 1.);
+            }
 
             float h = (float)(ph) * bin_size_h + roi_start_h;
             float w = (float)(pw) * bin_size_w + roi_start_w;
