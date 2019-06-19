@@ -11,6 +11,7 @@ from model.siamese_net.nms_tracking import trNMS
 from torch.autograd import Variable
 from model.dcn.modules.deform_conv import DeformConv
 from random import shuffle
+from model.utils.net_utils import _smooth_l1_loss
 
 class block(nn.Module):
     def __init__(self, inplanes, planes):
@@ -205,6 +206,7 @@ class _siameseRCNN(nn.Module):
         ##################################
         #        Detection part          #
         ##################################
+        # The order of image 1 and image 2 cannot be changed. Since tracking roi loss needs the right base_feat.
         # detection loss for image 1.
         rois_1, cls_prob_1, bbox_pred_1, \
         rpn_loss_cls_1, rpn_loss_box_1, \
@@ -235,14 +237,16 @@ class _siameseRCNN(nn.Module):
         # define tracking loss here.
         tracking_losses_cls_ls = []
         tracking_losses_box_ls = []
+        tracking_losses_rcnn_cls_ls = []
+        tracking_losses_rcnn_box_ls = []
         rtv_training_tuples = self.t_t_prop_layer(conv4_feat_1, conv4_feat_2, rpn_rois_1, gt_boxes_1, gt_boxes_2)
         rois = None
         scores = None
         siamRPN_loss_cls = 0
         siamRPN_loss_box = 0
-        shuffle(rtv_training_tuples)
+        #shuffle(rtv_training_tuples)
         for tpl_id in range(len(rtv_training_tuples)):
-            target_feat, template_weights, target_gt_boxes = rtv_training_tuples[tpl_id]
+            batch_id, target_feat, template_weights, target_gt_boxes = rtv_training_tuples[tpl_id]
             # For memory issue, we randomly sample objects for training if there are too many objects to track.
             if target_gt_boxes.size(0) > cfg.TRAIN.SIAMESE_MAX_TRACKING_OBJ:
                 perm = torch.randperm(target_gt_boxes.size(0))
@@ -259,15 +263,22 @@ class _siameseRCNN(nn.Module):
                 tracking_losses_cls_ls.append(rpn_loss_cls_siam)
             if rpn_loss_box_siam is not None:
                 tracking_losses_box_ls.append(rpn_loss_box_siam)
+            ###########################
+            #    Tracking roi loss    #
+            ###########################
+            rois = rois.view(1, -1, 6)
+            # One batch a time.
+            rois.data[:, :, 0] = 0
+            tra_rois, tra_rois_label, tra_rois_target, tra_rois_inside_ws, tra_rois_outside_ws = self.RCNN.prepare_rois_for_training(
+                rois.view(1, -1, 5), target_gt_boxes.view(1, -1, 6)[:,:,:5], target_gt_boxes.size(0))
 
-        if len(tracking_losses_cls_ls) > 0:
-            siamRPN_loss_cls = torch.mean(torch.stack(tracking_losses_cls_ls))
-        else:
-            siamRPN_loss_cls = None
-        if len(tracking_losses_box_ls) > 0:
-            siamRPN_loss_box = torch.mean(torch.stack(tracking_losses_box_ls))
-        else:
-            siamRPN_loss_box = None
+            tra_rois = Variable(tra_rois)
+            tra_bbox_pred, tra_cls_prob, tra_cls_score = \
+                self.RCNN.base_feat_to_roi_pred(self.RCNN.base_feat_for_roi[batch_id:batch_id+1], tra_rois, tra_rois_label)
+            tra_RCNN_loss_cls = F.cross_entropy(tra_cls_score, tra_rois_label)
+            tra_RCNN_loss_bbox = _smooth_l1_loss(tra_bbox_pred, tra_rois_target, tra_rois_inside_ws, tra_rois_outside_ws)
+            tracking_losses_rcnn_cls_ls.append(tra_RCNN_loss_cls)
+            tracking_losses_rcnn_box_ls.append(tra_RCNN_loss_bbox)
 
         rpn_loss_cls = (rpn_loss_cls_1.mean() + rpn_loss_cls_2.mean()) / 2
         rpn_loss_box = (rpn_loss_box_1.mean() + rpn_loss_box_2.mean()) / 2
@@ -275,18 +286,31 @@ class _siameseRCNN(nn.Module):
         RCNN_loss_bbox = (RCNN_loss_bbox_1.mean() + RCNN_loss_bbox_2.mean()) / 2
         rois_label = torch.cat((rois_label_1, rois_label_2), 0)
 
-        if siamRPN_loss_cls is not None:
-            siamRPN_loss_cls = siamRPN_loss_cls.unsqueeze(0)
+        if len(tracking_losses_cls_ls) > 0:
+            siamRPN_loss_cls = torch.mean(torch.stack(tracking_losses_cls_ls)).unsqueeze(0)
         else:
             siamRPN_loss_cls = rpn_loss_cls.new_zeros(1)
-        if siamRPN_loss_box is not None:
-            siamRPN_loss_box = siamRPN_loss_box.unsqueeze(0)
+        if len(tracking_losses_box_ls) > 0:
+            siamRPN_loss_box = torch.mean(torch.stack(tracking_losses_box_ls)).unsqueeze(0)
         else:
             siamRPN_loss_box = rpn_loss_cls.new_zeros(1)
+        if len(tracking_losses_rcnn_cls_ls) > 0:
+            siamRPN_RCNN_loss_cls = torch.mean(torch.stack(tracking_losses_rcnn_cls_ls)).unsqueeze(0)
+        else:
+            siamRPN_RCNN_loss_cls = rpn_loss_cls.new_zeros(1)
+        if len(tracking_losses_rcnn_box_ls) > 0:
+            siamRPN_RCNN_loss_box = torch.mean(torch.stack(tracking_losses_rcnn_box_ls)).unsqueeze(0)
+        else:
+            siamRPN_RCNN_loss_box = rpn_loss_cls.new_zeros(1)
+
         rpn_loss_cls = rpn_loss_cls.unsqueeze(0)
         rpn_loss_box = rpn_loss_box.unsqueeze(0)
         RCNN_loss_cls = RCNN_loss_cls.unsqueeze(0)
         RCNN_loss_bbox = RCNN_loss_bbox.unsqueeze(0)
+
+        RCNN_loss_cls  = RCNN_loss_cls  + siamRPN_RCNN_loss_cls
+        RCNN_loss_bbox = RCNN_loss_bbox + siamRPN_RCNN_loss_box
+
         if cfg.TRAIN.SIAMESE_ONLY is True:
             rpn_loss_cls = rpn_loss_cls.new_zeros(1)
             rpn_loss_box = rpn_loss_cls.new_zeros(1)

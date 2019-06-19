@@ -76,7 +76,7 @@ class _TemplateTargetProposalLayer(nn.Module):
 
             template_weights = template_weights.index_select(0, fg_obj_inds)
             target_gt_boxes = target_gt_boxes.index_select(0, fg_obj_inds)
-            rtv_training_tuples.append((target_feat, template_weights, target_gt_boxes))
+            rtv_training_tuples.append((idx, target_feat, template_weights, target_gt_boxes))
 
         return rtv_training_tuples
 
