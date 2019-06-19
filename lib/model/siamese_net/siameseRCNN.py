@@ -94,7 +94,7 @@ class _siameseRCNN(nn.Module):
         # we only support cuda.
         self.siameseRPN_layer = self.siameseRPN_layer.cuda()
         self.RCNN = self.RCNN.cuda()
-        self.nms = trNMS()
+        self.nms = trNMS(cfg.SIAMESE.PANELTY_K, cfg.SIAMESE.HANNING_WINDOW_WEIGHT, cfg.SIAMESE.HANNING_WINDOW_SIZE_FACTOR)
 
     def _make_layer(self, block, inplanes, planes, blocks):
         layers = []
@@ -266,11 +266,11 @@ class _siameseRCNN(nn.Module):
             ###########################
             #    Tracking roi loss    #
             ###########################
-            rois = rois.view(1, -1, 6)
+            rois = rois.view(1, -1, 5)
             # One batch a time.
             rois.data[:, :, 0] = 0
             tra_rois, tra_rois_label, tra_rois_target, tra_rois_inside_ws, tra_rois_outside_ws = self.RCNN.prepare_rois_for_training(
-                rois.view(1, -1, 5), target_gt_boxes.view(1, -1, 6)[:,:,:5], target_gt_boxes.size(0))
+                rois, target_gt_boxes.view(1, -1, 6)[:,:,:5], target_gt_boxes.size(0))
 
             tra_rois = Variable(tra_rois)
             tra_bbox_pred, tra_cls_prob, tra_cls_score = \
@@ -303,13 +303,12 @@ class _siameseRCNN(nn.Module):
         else:
             siamRPN_RCNN_loss_box = rpn_loss_cls.new_zeros(1)
 
+        RCNN_loss_cls = RCNN_loss_cls + siamRPN_RCNN_loss_cls
+        RCNN_loss_bbox = RCNN_loss_bbox + siamRPN_RCNN_loss_box
         rpn_loss_cls = rpn_loss_cls.unsqueeze(0)
         rpn_loss_box = rpn_loss_box.unsqueeze(0)
         RCNN_loss_cls = RCNN_loss_cls.unsqueeze(0)
         RCNN_loss_bbox = RCNN_loss_bbox.unsqueeze(0)
-
-        RCNN_loss_cls  = RCNN_loss_cls  + siamRPN_RCNN_loss_cls
-        RCNN_loss_bbox = RCNN_loss_bbox + siamRPN_RCNN_loss_box
 
         if cfg.TRAIN.SIAMESE_ONLY is True:
             rpn_loss_cls = rpn_loss_cls.new_zeros(1)
