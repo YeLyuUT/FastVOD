@@ -157,7 +157,8 @@ class _fasterRCNN(resnet):
 
         # feed image data to base model to obtain base feature map
         base_feat = self.RCNN_base(im_data)
-
+        if cfg.SIAMESE.DETACH_CONV1234 is True:
+            base_feat.detach_()
         # feed base feature map tp RPN to obtain rois
         if cfg.SIAMESE.DETACH_FEAT is True:
             self.Conv_feat_track = base_feat.detach()
