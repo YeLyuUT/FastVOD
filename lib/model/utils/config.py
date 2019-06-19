@@ -307,7 +307,7 @@ __C.SIAMESE.RPN_NMS_THRESH = 0.7
 #__C.SIAMESE.RPN_POST_NMS_TOP_N = 20
 # Proposal height and width both need to be greater than RPN_MIN_SIZE (at orig image scale)
 __C.SIAMESE.RPN_POSITIVE_OVERLAP = 0.5
-# Select training samples for siameseRPN loss. RPN_NEGATIVE_OVERLAP_LO < IOU < RPN_NEGATIVE_OVERLAP_HI: negative example
+# Select training samples for siameseRPN loss. RPN_NEGATIVE_OVERLAP_LO <= IOU <= RPN_NEGATIVE_OVERLAP_HI: negative example
 __C.SIAMESE.RPN_NEGATIVE_OVERLAP_HI = 0.3
 __C.SIAMESE.RPN_NEGATIVE_OVERLAP_LO = 0.01
 # This should be 1.0. As we only propose positive training samples.
@@ -328,10 +328,11 @@ __C.SIAMESE.PANELTY_K = 0.4
 # Whether to use distance to penalize rpn box selection.
 __C.SIAMESE.USE_POS_PRIOR_FOR_SEL = True
 # Detach the siam training features or not.
+__C.SIAMESE.DETACH_CONV1234 = False
 __C.SIAMESE.DETACH_FEAT = False
 __C.SIAMESE.NORMALIZE_CORRELATION = True
 __C.SIAMESE.WEIGHT_CROPPING_LAYER_SCALE = 1.0/16.0
-
+__C.SIAMESE.USE_SEPARABLE_CORRELATION = False
 #
 # MISC
 #
