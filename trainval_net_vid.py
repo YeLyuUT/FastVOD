@@ -415,9 +415,9 @@ if __name__ == '__main__':
       num_boxes_2.data.resize_(data_2[3].size()).copy_(data_2[3])
 
       RCNN.zero_grad()
+
       input = (im_data_1, im_info_1, num_boxes_1, gt_boxes_1, im_data_2, im_info_2, num_boxes_2, gt_boxes_2)
       rois_label, siamRPN_loss_cls, siamRPN_loss_box, rpn_loss_cls, rpn_loss_box, RCNN_loss_cls, RCNN_loss_bbox = RCNN(input)
-
 
       loss = rpn_loss_cls.mean() + rpn_loss_box.mean() \
              + RCNN_loss_cls.mean() + RCNN_loss_bbox.mean()
@@ -428,8 +428,8 @@ if __name__ == '__main__':
       # backward
       optimizer.zero_grad()
       loss.backward()
-      #if args.net == "vgg16":
-          #clip_gradient(RCNN, 10.)
+      # clip gradient
+      clip_gradient(RCNN, 10.)
       optimizer.step()
 
       if step % args.disp_interval == 0:
