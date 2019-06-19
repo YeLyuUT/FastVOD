@@ -18,11 +18,11 @@ class siameseRPN_one_branch(nn.Module):
         super(siameseRPN_one_branch, self).__init__()
         self.use_separable_correlation = use_separable_correlation
         self.din = input_dim  # get depth of input feature map, e.g., 1024.
-        self.correlation_channel = cfg.SIAMESE.NUM_CHANNELS_FOR_CORRELATION
+        self.correlation_channel = 10 #cfg.SIAMESE.NUM_CHANNELS_FOR_CORRELATION
         self.anchor_scales = anchor_scales
         self.anchor_ratios = anchor_ratios
         # TODO add expand_factor to cfg.
-        self.expand_factor = 32
+        self.expand_factor = 1024
 
         # TODO this may be modified if used for other strides.
         self.feat_stride = 1.0/cfg.SIAMESE.WEIGHT_CROPPING_LAYER_SCALE
@@ -73,13 +73,14 @@ class siameseRPN_one_branch(nn.Module):
                     m.bias.data.zero_()
 
         normal_init(self.RPN_cls_score, 0, 0.01, cfg.TRAIN.TRUNCATED)
-        normal_init(self.RPN_bbox_pred, 0, 0.01, cfg.TRAIN.TRUNCATED)
+        normal_init(self.RPN_bbox_pred, 0, 0.001, cfg.TRAIN.TRUNCATED)
 
         if cfg.SIAMESE.NORMALIZE_CORRELATION is True:
             normal_init(self.RPN_Conv_target, 0, 0.01, cfg.TRAIN.TRUNCATED)
         else:
             normal_init(self.RPN_Conv_target, 0, 0.001, cfg.TRAIN.TRUNCATED)
 
+        #normal_init(self.RPN_Conv_template, 0, 0.01, cfg.TRAIN.TRUNCATED)
         self._init_score_w_accord_to_target_w(self.expand_factor, self.RPN_Conv_target.weight, self.RPN_Conv_template.weight)
 
         if self.conv_merge_1x1_cls is not None:
@@ -134,9 +135,20 @@ class siameseRPN_one_branch(nn.Module):
         W = target_feat.size(3)
 
         if cfg.SIAMESE.NORMALIZE_CORRELATION is True:
+            # normalize target feature.
+            N = target_feat.size(1)*template_feat.size(-2)*template_feat.size(-1)
+            norm_w = target_feat.new_ones(1, target_feat.size(1), template_feat.size(-2), template_feat.size(-1),
+                                          requires_grad=False)
+            mean_target_feat = (nn.functional.conv2d(target_feat, norm_w, padding=int((template_feat.size(2) - 1) / 2))/N).detach_()
+            target_feat = target_feat - mean_target_feat
+
+            #target_feat_sqr = target_feat*target_feat
+            #target_feat = target_feat/(nn.functional.conv2d(target_feat_sqr, norm_w, padding=int((template_feat.size(2) - 1) / 2)).sqrt().detach_())
+
             tmp_sz = template_feat.size()
             template_feat = template_feat.view(template_feat.size(0), -1)
-            template_feat = template_feat / torch.norm(template_feat, p=2, dim=1, keepdim=True)
+            template_feat = template_feat - torch.mean(template_feat, dim=1, keepdim=True).detach_()
+            template_feat = template_feat/(torch.norm(template_feat, p=2, dim=1, keepdim=True).detach_())
             template_feat = template_feat.view(tmp_sz)
 
         out = nn.functional.conv2d(
@@ -264,7 +276,10 @@ class siameseRPN_one_branch(nn.Module):
         else:
             rpn_feat = self.cross_correlation(target_feat, template_feat, self.bias)
 
-        rpn_feat = rpn_feat*0.1
+        if cfg.SIAMESE.NORMALIZE_CORRELATION is True:
+            rpn_feat = rpn_feat
+        else:
+            rpn_feat = rpn_feat * 0.1
         rpn_cls_score = self.RPN_cls_score(rpn_feat)
         rpn_bbox_pred = self.RPN_bbox_pred(rpn_feat)
 
