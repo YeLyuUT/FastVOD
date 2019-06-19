@@ -149,22 +149,22 @@ class siameseRPN(nn.Module):
         H = target_feat.size(2)
         W = target_feat.size(3)
 
-        # normalize target feature.
-        '''
-        norm_target_feat = (target_feat*target_feat)
-        norm_w = target_feat.new_ones(1, target_feat.size(1), template_feat.size(-2), template_feat.size(-1), requires_grad=False)
-        norm_sum = nn.functional.conv2d(
-            norm_target_feat,
-            norm_w,
-            bias=None,
-            stride=1,
-            padding=int((template_feat.size(2) - 1) / 2),
-            dilation=1,
-            groups=1).sqrt().detach()
-        target_feat = 32*target_feat/norm_sum
-        '''
-
         if cfg.SIAMESE.NORMALIZE_CORRELATION is True:
+            # normalize target feature.
+            '''
+            norm_target_feat = (target_feat*target_feat)
+            norm_w = target_feat.new_ones(1, target_feat.size(1), template_feat.size(-2), template_feat.size(-1), requires_grad=False)
+            norm_sum = nn.functional.conv2d(
+                norm_target_feat,
+                norm_w,
+                bias=None,
+                stride=1,
+                padding=int((template_feat.size(2) - 1) / 2),
+                dilation=1,
+                groups=1).sqrt().detach()
+            target_feat = 32*target_feat/norm_sum
+            '''
+
             tmp_sz = template_feat.size()
             template_feat = template_feat.view(template_feat.size(0), -1)
             template_feat = template_feat/(torch.norm(template_feat, p=2, dim=1, keepdim=True).detach())
