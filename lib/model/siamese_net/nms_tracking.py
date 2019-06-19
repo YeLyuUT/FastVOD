@@ -4,9 +4,9 @@ from model.utils.config import cfg
 
 class trNMS(nn.Module):
     def __init__(self,
-            PANELTY_K = cfg.SIAMESE.PANELTY_K,
-            HANNING_WINDOW_WEIGHT = cfg.SIAMESE.HANNING_WINDOW_WEIGHT,
-            HANNING_WINDOW_SIZE_FACTOR = cfg.SIAMESE.HANNING_WINDOW_SIZE_FACTOR):
+            PANELTY_K ,
+            HANNING_WINDOW_WEIGHT ,
+            HANNING_WINDOW_SIZE_FACTOR):
         super(trNMS, self).__init__()
         self.PANELTY_K = PANELTY_K
         self.HANNING_WINDOW_WEIGHT = HANNING_WINDOW_WEIGHT
