@@ -62,17 +62,17 @@ def prepare_roidb(imdb):
 
 def rank_roidb_ratio(roidb):
     # rank roidb based on the ratio between width and height.
-    ratio_large = 2 # largest ratio to preserve.
-    ratio_small = 0.5 # smallest ratio to preserve.    
+    ratio_large = cfg.TRAIN.UPPER_BOUND # largest ratio to preserve.
+    ratio_small = cfg.TRAIN.LOWER_BOUND # smallest ratio to preserve.
     
     ratio_list = []
     for i in range(len(roidb)):
       width = roidb[i]['width']
       height = roidb[i]['height']
       ratio = width / float(height)
-      # we do not clip the image, as the boxes' positions in video are not the same.
+      # we do not clip the image, as the boxes' positions in video are not the same. But does not matter.
       roidb[i]['need_crop'] = 0
-      '''
+
       if ratio > ratio_large:
         roidb[i]['need_crop'] = 1
         ratio = ratio_large
@@ -81,7 +81,6 @@ def rank_roidb_ratio(roidb):
         ratio = ratio_small        
       else:
         roidb[i]['need_crop'] = 0
-      '''
       ratio_list.append(ratio)
 
     ratio_list = np.array(ratio_list)

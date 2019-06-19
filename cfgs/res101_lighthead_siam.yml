@@ -14,8 +14,15 @@ TRAIN:
   # siamese related.
   SIAMESE_ONLY: False
   SIAMESE_MAX_TRACKING_OBJ: 10
+  # image size.
+  UPPER_BOUND: 1.0
+  LOWER_BOUND: 1.0
+  TRIM_HEIGHT: 768
+  TRIM_WIDTH: 768
+  SCALES: [768]
 TEST:
   HAS_RPN: True
+  SCALES: [768]
 POOLING_SIZE: 7
 #POOLING_MODE: align
 POOLING_MODE: pspool
@@ -34,7 +41,7 @@ SIAMESE:
   ANCHOR_RATIOS: [0.5,1,2]
 
   # Template selection threshold.
-  TEMPLATE_SEL_FG_THRESH: 0.7
+  TEMPLATE_SEL_FG_THRESH: 0.6
   # We do not need negative examples. So TEMPLATE_SEL_BG_THRESH_LO==TEMPLATE_SEL_BG_THRESH_HI
   TEMPLATE_SEL_BG_THRESH_LO: 0.1
   TEMPLATE_SEL_BG_THRESH_HI: 0.1
@@ -69,15 +76,15 @@ SIAMESE:
 
   # Penalty control.
   # TODO this may need further tuning.
-  HANNING_WINDOW_WEIGHT: 0.4
+  HANNING_WINDOW_WEIGHT: 1.0
   # The hanning window size is of instance size*HANNING_WINDOW_SIZE_FACTOR.
   HANNING_WINDOW_SIZE_FACTOR: 1.0
-  PANELTY_K: 0.15
+  PANELTY_K: 0.2
   # Whether to use distance to penalize rpn box selection.
   USE_POS_PRIOR_FOR_SEL: True
   # Detach the siam training features or not.
   DETACH_FEAT: False
-  DETACH_CONV1234: True
+  DETACH_CONV1234: False
   NORMALIZE_CORRELATION: False
   # Use DCN for feature trans.
   USE_DCN: False
