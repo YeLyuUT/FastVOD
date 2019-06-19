@@ -18,11 +18,11 @@ class siameseRPN_one_branch(nn.Module):
         super(siameseRPN_one_branch, self).__init__()
         self.use_separable_correlation = use_separable_correlation
         self.din = input_dim  # get depth of input feature map, e.g., 1024.
-        self.correlation_channel = 10 #cfg.SIAMESE.NUM_CHANNELS_FOR_CORRELATION
+        self.correlation_channel = 128 #cfg.SIAMESE.NUM_CHANNELS_FOR_CORRELATION
         self.anchor_scales = anchor_scales
         self.anchor_ratios = anchor_ratios
         # TODO add expand_factor to cfg.
-        self.expand_factor = 1024
+        self.expand_factor = 32
 
         # TODO this may be modified if used for other strides.
         self.feat_stride = 1.0/cfg.SIAMESE.WEIGHT_CROPPING_LAYER_SCALE
