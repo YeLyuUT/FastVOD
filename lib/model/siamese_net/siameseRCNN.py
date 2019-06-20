@@ -90,7 +90,8 @@ class _siameseRCNN(nn.Module):
         self.RCNN.create_architecture()
 
         # Tracking feature branch.
-        self.track_feat_trans = self._make_layer(block, 1024, 1024, 2).cuda()
+        self.track_feat_trans_1 = self._make_layer(block, 1024, 1024, 2).cuda()
+        self.track_feat_trans_2 = self._make_layer(block, 1024, 1024, 2).cuda()
         # we only support cuda.
         self.siameseRPN_layer = self.siameseRPN_layer.cuda()
         self.RCNN = self.RCNN.cuda()
@@ -141,7 +142,7 @@ class _siameseRCNN(nn.Module):
         if rois_tracking is not None:
             # Tracking part.
             #target_feat, template_weights, target_gt_boxes = None
-            target_feat = self.track_feat_trans(self.RCNN.Conv_feat_track)
+            target_feat = self.track_feat_trans_2(self.RCNN.Conv_feat_track)
             target_gt_boxes = None
             input_v = (target_feat,
                        im_info,
@@ -216,7 +217,7 @@ class _siameseRCNN(nn.Module):
         # c3_1, c4_1, c5_1 = RCNN.c_3, RCNN.c_4, RCNN.c_5
         if cfg.TRAIN.SIAMESE_ONLY is True:
             self.RCNN.Conv_feat_track.detach_()
-        conv4_feat_1 = self.track_feat_trans(self.RCNN.Conv_feat_track)
+        conv4_feat_1 = self.track_feat_trans_1(self.RCNN.Conv_feat_track)
         rpn_rois_1 = self.RCNN.rpn_rois
 
         # detection loss for image 2.
@@ -228,7 +229,7 @@ class _siameseRCNN(nn.Module):
         # c3_2, c4_2, c5_2 = RCNN.c_3, RCNN.c_4, RCNN.c_5
         if cfg.TRAIN.SIAMESE_ONLY is True:
             self.RCNN.Conv_feat_track.detach_()
-        conv4_feat_2 = self.track_feat_trans(self.RCNN.Conv_feat_track)
+        conv4_feat_2 = self.track_feat_trans_2(self.RCNN.Conv_feat_track)
         rpn_rois_2 = self.RCNN.rpn_rois
 
         ##################################
