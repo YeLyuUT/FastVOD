@@ -168,7 +168,7 @@ class vid_plus_sampler(Sampler):
         :param sample_gap_upper_bound: sample_gap_upper_bound is the maximum index gap to sample two images.
         '''
         zero_index = lmdb._zero_index
-        image_index = lmdb._zero_index
+        image_index = lmdb.vid_plus_indexes
         vid_index_num = lmdb._vid_num
         idx_zero_index = 0
         samples = []
