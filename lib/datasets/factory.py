@@ -15,6 +15,7 @@ from datasets.pascal_voc import pascal_voc
 from datasets.coco import coco
 from datasets.imagenet import imagenet
 from datasets.imagenetVID import imagenetVID
+from datasets.imagenetVID_PLUS import imagenetVID_PLUS
 from datasets.imagenetDETVID import imagenetDETVID
 from datasets.imagenet_10_imgs import imagenet_10_imgs
 from datasets.imagenetVID_1_vid import imagenetVID_1_vid
@@ -80,6 +81,12 @@ for split in ['train', 'val', 'test']:
     devkit_path = 'data/imagenet/ILSVRC/devkit'
     data_path = 'data/imagenet/ILSVRC'
     __sets[name] = (lambda split=split, devkit_path=devkit_path, data_path=data_path: imagenetVID(split, devkit_path, data_path))
+
+for split in ['train', 'val', 'test']:
+    name = 'imagenetVID_PLUS_{}'.format(split)
+    devkit_path = 'data/imagenet/ILSVRC/devkit'
+    data_path = 'data/imagenet/ILSVRC'
+    __sets[name] = (lambda split=split, devkit_path=devkit_path, data_path=data_path: imagenetVID_PLUS(split, devkit_path, data_path))
 
 for split in ['train', 'val', 'test']:
     name = 'imagenetDETVID_{}'.format(split)

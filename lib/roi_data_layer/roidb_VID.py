@@ -4,7 +4,13 @@ from __future__ import division
 from __future__ import print_function
 
 import os
-import pickle
+
+try:
+   import cPickle as pickle
+   print('import cPickle')
+except:
+   import pickle
+   print('import python pickle')
 
 import datasets
 import numpy as np
@@ -22,6 +28,9 @@ def prepare_roidb(imdb):
   """
 
   roidb = imdb.roidb
+  if imdb.name.startswith('imagenetVID_PLUS'):
+    return
+
   if not (imdb.name.startswith('coco')):
     cache_file = os.path.join(imdb.cache_path, imdb.name + '_sizes.pkl')
     if os.path.exists(cache_file):

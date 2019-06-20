@@ -157,6 +157,39 @@ class batchSampler(BatchSampler):
     def __len__(self):
         return len(self.sampler) / self.batch_size
 
+class vid_plus_sampler(Sampler):
+    def __init__(self, lmdb):
+        '''
+        This sampler samples batches from 1 video every time.
+        :param train_size: the iteration per epoch.
+        :param lmdb: the input lmdb.
+        :param batch_size: number of video pairs for training.
+        :param vid_per_cat: sampled video number for each category. Default 50.
+        :param sample_gap_upper_bound: sample_gap_upper_bound is the maximum index gap to sample two images.
+        '''
+        zero_index = lmdb._zero_index
+        image_index = lmdb._zero_index
+        vid_index_num = lmdb._vid_num
+        idx_zero_index = 0
+        samples = []
+        for idx in range(len(image_index)):
+            if idx==zero_index[idx_zero_index]:
+                idx_zero_index+=1
+                continue
+            if idx>=lmdb._vid_num:
+                # double the det number for balanced det and vid samples.
+                samples.append((idx, idx))
+                samples.append((idx, idx))
+            else:
+                samples.append((idx-1, idx))
+        random.shuffle(samples)
+        self.samples = samples
+
+    def __iter__(self):
+        return iter(self.samples)
+
+    def __len__(self):
+        return len(self.samples)
 
 class sampler(Sampler):
     def __init__(self, train_size, lmdb, batch_size, vid_per_cat=50, sample_gap_upper_bound=10):
@@ -262,10 +295,15 @@ if __name__ == '__main__':
       args.imdb_name = 'imagenetVID_train'
       args.imdbval_name = 'imagenetVID_val'
       args.set_cfgs = ['ANCHOR_SCALES', '[4, 8, 16, 32]', 'ANCHOR_RATIOS', '[0.5,1,2]', 'MAX_NUM_GT_BOXES', '30']
+  elif args.dataset == "imagenetVID_PLUS":
+      args.imdb_name = 'imagenetVID_PLUS_train'
+      args.imdbval_name = 'imagenetVID_PLUS_val'
+      args.set_cfgs = ['ANCHOR_SCALES', '[4, 8, 16, 32]', 'ANCHOR_RATIOS', '[0.5,1,2]', 'MAX_NUM_GT_BOXES', '30']
   elif args.dataset == 'imagenetDETVID':
       args.imdb_name = 'imagenetDETVID_train'
       args.imdbval_name = 'imagenetDETVID_val'
       args.set_cfgs = ['ANCHOR_SCALES', '[4, 8, 16, 32]', 'ANCHOR_RATIOS', '[0.5,1,2]', 'MAX_NUM_GT_BOXES', '30']
+
 
   if args.cfg_file is None:
     args.cfg_file = "cfgs/{}_ls.yml".format(args.net) if args.large_scale else "cfgs/{}.yml".format(args.net)
@@ -296,20 +334,24 @@ if __name__ == '__main__':
   if not os.path.exists(output_dir):
     os.makedirs(output_dir)
 
+
+  #my_sampler = sampler(train_size = train_size, lmdb=imdb, batch_size=args.batch_size, vid_per_cat = 50, sample_gap_upper_bound = 100)
+  my_sampler = vid_plus_sampler(lmdb=imdb)
+  # TODO change back.
   # TODO change the dataloader and sampler.
+  '''
   train_size = 21000
   vid_per_cat = 50
   if args.dataset == "imagenetVID_1_vid":
       train_size = 120
       vid_per_cat = 1
-  #my_sampler = sampler(train_size = train_size, lmdb=imdb, batch_size=args.batch_size, vid_per_cat = 50, sample_gap_upper_bound = 100)
-  # TODO change back.
   my_sampler = sampler(
       train_size=train_size,
       lmdb=imdb,
       batch_size=args.batch_size,
       vid_per_cat=vid_per_cat,
       sample_gap_upper_bound=16)
+  '''
   my_batch_sampler = batchSampler(sampler = my_sampler, batch_size=args.batch_size)
 
   dataset = roibatchLoader_VID(roidb, ratio_list, ratio_index, args.batch_size, imdb.num_classes, training=True)
@@ -365,7 +407,7 @@ if __name__ == '__main__':
 
   if args.det_ckpt is not '':
       load_name_predix = cfg.RESNET.CORE_CHOICE.USE
-      load_name = os.path.join(output_dir, load_name_predix + '_{}.pth'.format(args.det_ckpt)).replace('VID','DETVID')
+      load_name = os.path.join(output_dir, load_name_predix + '_{}.pth'.format(args.det_ckpt)).replace('VID_PLUS','DETVID')
       print("loading checkpoint %s" % (load_name))
       checkpoint = torch.load(load_name)
       #args.session = checkpoint['session']
@@ -378,7 +420,7 @@ if __name__ == '__main__':
   if args.mGPUs:
     RCNN = nn.DataParallel(RCNN)
 
-  iters_per_epoch = int(train_size / args.batch_size)
+  iters_per_epoch = int(len(my_batch_sampler))
 
   if args.use_tfboard:
     from tensorboardX import SummaryWriter
