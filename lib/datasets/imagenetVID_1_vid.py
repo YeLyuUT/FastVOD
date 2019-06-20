@@ -172,7 +172,7 @@ class imagenetVID_1_vid(imdb):
                 if vid_idx==vid_indexes[0]:
                     for vid_id in vid_idx:
                         #if vid_id is vid_idx[0]:
-                        if vid_id is vid_idx[82]:
+                        if vid_id == vid_idx[82] or vid_id == vid_idx[133]:
                             vid_holder = []
                             flist = os.listdir(vid_id)
                             nfiles = len(flist)
@@ -181,15 +181,13 @@ class imagenetVID_1_vid(imdb):
                                 vid_holder.append(idx_counter)
                                 idx_counter += 1
                             cat_holder.append(vid_holder)
-                            break
                 structured_indexes.append(cat_holder)
-
-            with open(image_set_file, 'w') as f:
+            #with open(image_set_file, 'w') as f:
                 '''
                 for line in image_indexes:
                         f.write(line + '\n')
                 '''
-                pickle.dump((image_indexes, structured_indexes), f, pickle.HIGHEST_PROTOCOL)
+            #    pickle.dump((image_indexes, structured_indexes), f, pickle.HIGHEST_PROTOCOL)
             return image_indexes, structured_indexes
         else:
             image_set_file = os.path.join(self._data_path, 'ImageSets', 'VID', 'val.txt')
@@ -222,9 +220,9 @@ class imagenetVID_1_vid(imdb):
         for img_idx in self.image_index:
             gt_roidb.append(self._load_imagenet_annotation(img_idx))
 
-        with open(cache_file, 'wb') as fid:
-            pickle.dump(gt_roidb, fid, pickle.HIGHEST_PROTOCOL)
-        print('wrote gt roidb to {}'.format(cache_file))
+        #with open(cache_file, 'wb') as fid:
+            #pickle.dump(gt_roidb, fid, pickle.HIGHEST_PROTOCOL)
+        #print('wrote gt roidb to {}'.format(cache_file))
         return gt_roidb
 
 
