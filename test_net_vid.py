@@ -196,6 +196,10 @@ if __name__ == '__main__':
       args.imdb_name = 'imagenetVID_train'
       args.imdbval_name = 'imagenetVID_val'
       args.set_cfgs = ['ANCHOR_SCALES', '[4, 8, 16, 32]', 'ANCHOR_RATIOS', '[0.5,1,2]', 'MAX_NUM_GT_BOXES', '30']
+  elif args.dataset == "imagenetVID_PLUS":
+      args.imdb_name = 'imagenetVID_PLUS_train'
+      args.imdbval_name = 'imagenetVID_PLUS_val'
+      args.set_cfgs = ['ANCHOR_SCALES', '[4, 8, 16, 32]', 'ANCHOR_RATIOS', '[0.5,1,2]', 'MAX_NUM_GT_BOXES', '30']
   elif args.dataset == "imagenetVID_1_vid":
       args.imdb_name = 'imagenetVID_1_vid_train'
       # TODO imdbval is set to train set now.
