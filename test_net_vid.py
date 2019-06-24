@@ -422,7 +422,7 @@ if __name__ == '__main__':
       # First, convert all_boxes to rois_tracking.#
       rois_tracking = prepare_rois_tracking(im_info[0], all_boxes, all_boxes_scores, frame_id=i,
                                             class_num=imdb.num_classes, thresh=cfg.SIAMESE.THRESH_FOR_TRACKING)
-      base_feat = RCNN.track_feat_trans.cuda()(RCNN.RCNN.Conv_feat_track)
+      base_feat = RCNN.track_feat_trans_1.cuda()(RCNN.RCNN.Conv_feat_track)
       template_weights, rois_tracking = siam_weights_preparation(rois_tracking, base_feat)
 
       misc_toc = time.time()
