@@ -460,13 +460,17 @@ if __name__ == '__main__':
 
       input = (im_data_1, im_info_1, num_boxes_1, gt_boxes_1, im_data_2, im_info_2, num_boxes_2, gt_boxes_2)
       rois_label, siamRPN_loss_cls, siamRPN_loss_box, rpn_loss_cls, rpn_loss_box, RCNN_loss_cls, RCNN_loss_bbox = RCNN(input)
-
-      loss = rpn_loss_cls.mean() + rpn_loss_box.mean() \
-             + RCNN_loss_cls.mean() + RCNN_loss_bbox.mean()
+      loss = 0
+      if not cfg.SIAMESE.NO_RPN_TRAINING:
+          loss += rpn_loss_cls.mean() + rpn_loss_box.mean()
+      if cfg.SIAMESE.NO_RCNN_TRAINING:
+          loss += RCNN_loss_cls.mean() + RCNN_loss_bbox.mean()
       if siamRPN_loss_cls is not None and siamRPN_loss_box is not None:
-        loss += siamRPN_loss_cls.mean() + siamRPN_loss_box.mean()
-      loss_temp += loss.item()
+          loss += siamRPN_loss_cls.mean() + siamRPN_loss_box.mean()
+      if loss==0:
+          continue
 
+      loss_temp += loss.item()
       # backward
       optimizer.zero_grad()
       loss.backward()

@@ -87,7 +87,7 @@ __C.TRAIN.FG_THRESH = 0.5
 # Overlap threshold for a ROI to be considered background (class = 0 if
 # overlap in [LO, HI))
 __C.TRAIN.BG_THRESH_HI = 0.5
-__C.TRAIN.BG_THRESH_LO = 0.1
+__C.TRAIN.BG_THRESH_LO = 0.0
 
 # Use horizontally-flipped images during training?
 __C.TRAIN.USE_FLIPPED = True
@@ -331,10 +331,14 @@ __C.SIAMESE.PANELTY_K = 0.4
 __C.SIAMESE.USE_POS_PRIOR_FOR_SEL = True
 # Detach the siam training features or not.
 __C.SIAMESE.DETACH_CONV1234 = False
-__C.SIAMESE.DETACH_FEAT = False
+__C.SIAMESE.DETACH_FEAT_FOR_TRACK = False
 __C.SIAMESE.NORMALIZE_CORRELATION = True
 __C.SIAMESE.WEIGHT_CROPPING_LAYER_SCALE = 1.0/16.0
 __C.SIAMESE.USE_SEPARABLE_CORRELATION = False
+
+__C.SIAMESE.NO_RPN_TRAINING = False
+__C.SIAMESE.NO_RCNN_TRAINING = False
+
 #
 # MISC
 #
