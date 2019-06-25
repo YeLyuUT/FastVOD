@@ -72,7 +72,7 @@ SIAMESE:
   # SIAMESE DETECTION INFLUENCE WEIGHT. 1.0 means the same as the original weight.
   DET_WEIGHT: 0.0
   # SCORE THRESHOLD FOR TRACKING.
-  THRESH_FOR_TRACKING: 0.8
+  THRESH_FOR_TRACKING: 0.5
 
   # Penalty control.
   # TODO this may need further tuning.
@@ -82,10 +82,13 @@ SIAMESE:
   PANELTY_K: 0.2
   # Whether to use distance to penalize rpn box selection.
   USE_POS_PRIOR_FOR_SEL: True
-  # Detach the siam training features or not.
-  DETACH_FEAT: False
-  DETACH_CONV1234: False
   NORMALIZE_CORRELATION: False
   # Use DCN for feature trans.
   USE_DCN: False
   USE_SEPARABLE_CORRELATION: False
+
+  # Detach the siam training features or not.
+  DETACH_FEAT_FOR_TRACK: False
+  DETACH_CONV1234: True
+  NO_RPN_TRAINING: True
+  NO_RCNN_TRAINING: False
