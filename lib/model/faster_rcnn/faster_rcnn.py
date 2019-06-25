@@ -166,6 +166,7 @@ class _fasterRCNN(resnet):
             self.Conv_feat_track = base_feat
         rois_rpn, rpn_loss_cls, rpn_loss_bbox = self.RCNN_rpn(base_feat, im_info, gt_boxes, num_boxes)
         self.rpn_rois = rois_rpn
+
         # if it is training phrase, then use ground truth bboxes for refinement.
         if self.training:
             rois, rois_label, rois_target, rois_inside_ws, rois_outside_ws = self.prepare_rois_for_training(rois_rpn, gt_boxes, num_boxes)
@@ -177,6 +178,8 @@ class _fasterRCNN(resnet):
             rpn_loss_cls = 0
             rpn_loss_bbox = 0
             rois = rois_rpn
+            if rois is None:
+                return None, None, None, None, None, None, None, None
 
         rois = Variable(rois)
 

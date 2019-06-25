@@ -13,7 +13,7 @@ TRAIN:
   LEARNING_RATE: 0.001
   # siamese related.
   SIAMESE_ONLY: False
-  SIAMESE_MAX_TRACKING_OBJ: 10
+  SIAMESE_MAX_TRACKING_OBJ: 6
   # image size.
   UPPER_BOUND: 1.0
   LOWER_BOUND: 1.0
@@ -23,6 +23,7 @@ TRAIN:
 TEST:
   HAS_RPN: True
   SCALES: [768]
+  RPN_SCORE_THRESH: 0.7
 POOLING_SIZE: 7
 #POOLING_MODE: align
 POOLING_MODE: pspool
@@ -72,14 +73,14 @@ SIAMESE:
   # SIAMESE DETECTION INFLUENCE WEIGHT. 1.0 means the same as the original weight.
   DET_WEIGHT: 0.0
   # SCORE THRESHOLD FOR TRACKING.
-  THRESH_FOR_TRACKING: 0.5
+  THRESH_FOR_TRACKING: 0.9
 
   # Penalty control.
   # TODO this may need further tuning.
-  HANNING_WINDOW_WEIGHT: 1.0
+  HANNING_WINDOW_WEIGHT: 0.3
   # The hanning window size is of instance size*HANNING_WINDOW_SIZE_FACTOR.
   HANNING_WINDOW_SIZE_FACTOR: 1.0
-  PANELTY_K: 0.2
+  PANELTY_K: 0.25
   # Whether to use distance to penalize rpn box selection.
   USE_POS_PRIOR_FOR_SEL: True
   NORMALIZE_CORRELATION: False
@@ -89,6 +90,6 @@ SIAMESE:
 
   # Detach the siam training features or not.
   DETACH_FEAT_FOR_TRACK: False
-  DETACH_CONV1234: True
-  NO_RPN_TRAINING: True
+  DETACH_CONV1234: False
+  NO_RPN_TRAINING: False
   NO_RCNN_TRAINING: False

@@ -342,16 +342,19 @@ if __name__ == '__main__':
       det_tic = time.time()
       siam_rois, siam_bbox_pred, siam_cls_prob, rois, rois_label, cls_prob, bbox_pred = RCNN(input)
 
+      scores = None
+      pred_boxes = None
       ###########################################
       # Get detection boxes.
       ###########################################
       if cfg.TEST.BBOX_REG:
-          scores = cls_prob.data
-          boxes = rois.data[:, :, 1:5]
-          pred_boxes = bbox_delta_to_pred_boxes(im_info, boxes, bbox_pred)
-          pred_boxes /= data[1][0][2].item()
-          scores = scores.squeeze()
-          pred_boxes = pred_boxes.squeeze()
+          if rois is not None:
+              scores = cls_prob.data
+              boxes = rois.data[:, :, 1:5]
+              pred_boxes = bbox_delta_to_pred_boxes(im_info, boxes, bbox_pred)
+              pred_boxes /= data[1][0][2].item()
+              scores = scores.squeeze()
+              pred_boxes = pred_boxes.squeeze()
           if siam_bbox_pred is not None:
               siam_scores = siam_cls_prob.data
               siam_boxes = siam_rois.data[:, 1:5]
@@ -359,8 +362,12 @@ if __name__ == '__main__':
               pred_siam_bbox /= data[1][0][2].item()
               pred_siam_bbox = pred_siam_bbox.squeeze(0)
               # concatenate siambox and detbox.
-              pred_boxes = torch.cat((pred_boxes, pred_siam_bbox), 0)
-              scores = torch.cat((scores, siam_scores), 0)
+              if rois is not None:
+                pred_boxes = torch.cat((pred_boxes, pred_siam_bbox), 0)
+                scores = torch.cat((scores, siam_scores), 0)
+              else:
+                pred_boxes = pred_siam_bbox
+                scores = siam_scores
               #####################
               #pred_boxes = pred_boxes
               #scores = scores
@@ -368,7 +375,7 @@ if __name__ == '__main__':
               #pred_boxes = siam_boxes.repeat(1, siam_boxes.size(1) * 31)
               #pred_boxes = pred_boxes / im_info[0][-1]
               #####################
-              # pred_boxes = pred_siam_bbox
+              #pred_boxes = pred_siam_bbox
               #####################
               #scores = siam_scores
       else:
@@ -380,32 +387,36 @@ if __name__ == '__main__':
       ###########################################
       # NMS for detection and save to all boxes.
       ###########################################
-      for j in xrange(1, imdb.num_classes):
-          inds = torch.nonzero(scores[:,j]>thresh).view(-1)
-          # if there is det
-          if inds.numel() > 0:
-            cls_scores = scores[:,j][inds]
-            all_scores = scores[inds]
-            _, order = torch.sort(cls_scores, 0, True)
-            if args.class_agnostic:
-              cls_boxes = pred_boxes[inds, :]
-            else:
-              cls_boxes = pred_boxes[inds][:, j * 4:(j + 1) * 4]
+      if scores is not None:
+          for j in xrange(1, imdb.num_classes):
+              inds = torch.nonzero(scores[:,j]>thresh).view(-1)
+              # if there is det
+              if inds.numel() > 0:
+                cls_scores = scores[:,j][inds]
+                all_scores = scores[inds]
+                _, order = torch.sort(cls_scores, 0, True)
+                if args.class_agnostic:
+                  cls_boxes = pred_boxes[inds, :]
+                else:
+                  cls_boxes = pred_boxes[inds][:, j * 4:(j + 1) * 4]
 
-            cls_dets = torch.cat((cls_boxes, cls_scores.unsqueeze(1)), 1)
-            # cls_dets = torch.cat((cls_boxes, cls_scores), 1)
-            cls_dets = cls_dets[order]
-            all_scores = all_scores[order]
-            ######### nms for each cls here ########
-            keep = nms(cls_dets, cfg.TEST.NMS)
-            cls_dets = cls_dets[keep.view(-1).long()]
-            all_cls_scores = all_scores[keep.view(-1).long()]
-            all_boxes[j][i] = cls_dets.cpu().numpy()
-            all_boxes_scores[j][i] = all_cls_scores.cpu().numpy()
-          else:
-            all_boxes[j][i] = empty_array
-            all_boxes_scores[j][i] = empty_array
-
+                cls_dets = torch.cat((cls_boxes, cls_scores.unsqueeze(1)), 1)
+                # cls_dets = torch.cat((cls_boxes, cls_scores), 1)
+                cls_dets = cls_dets[order]
+                all_scores = all_scores[order]
+                ######### nms for each cls here ########
+                keep = nms(cls_dets, cfg.TEST.NMS)
+                cls_dets = cls_dets[keep.view(-1).long()]
+                all_cls_scores = all_scores[keep.view(-1).long()]
+                all_boxes[j][i] = cls_dets.cpu().numpy()
+                all_boxes_scores[j][i] = all_cls_scores.cpu().numpy()
+              else:
+                all_boxes[j][i] = empty_array
+                all_boxes_scores[j][i] = empty_array
+      else:
+          for j in xrange(1, imdb.num_classes):
+              all_boxes[j][i] = empty_array
+              all_boxes_scores[j][i] = empty_array
       # Limit to max_per_image detections *over all classes*
       if max_per_image > 0:
           image_scores = np.hstack([all_boxes[j][i][:, -1]
