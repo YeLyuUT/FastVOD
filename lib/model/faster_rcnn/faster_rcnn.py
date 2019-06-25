@@ -160,7 +160,7 @@ class _fasterRCNN(resnet):
         if cfg.SIAMESE.DETACH_CONV1234 is True:
             base_feat.detach_()
         # feed base feature map tp RPN to obtain rois
-        if cfg.SIAMESE.DETACH_FEAT is True:
+        if cfg.SIAMESE.DETACH_FEAT_FOR_TRACK is True:
             self.Conv_feat_track = base_feat.detach()
         else:
             self.Conv_feat_track = base_feat
