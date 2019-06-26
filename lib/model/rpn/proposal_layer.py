@@ -140,9 +140,8 @@ class _ProposalLayer(nn.Module):
             else:
                 # 0.5 used to filter
                 thr = cfg.TEST.RPN_SCORE_THRESH
-                nonzeros = torch.nonzero(scores_single>=thr)
-                if len(nonzeros)>0:
-                    keep = nonzeros[0]
+                keep = torch.nonzero(scores_single>=thr).view(-1)
+                if len(keep)>0:
                     proposals_single = proposals_single[keep]
                     scores_single = scores_single[keep]
                     _, order_single = torch.sort(scores_single, 0, True)

@@ -148,6 +148,9 @@ class _siameseRCNN(nn.Module):
                        im_info,
                        template_weights)
             siam_rois, siam_scores, loss_cls, loss_box = self.siameseRPN_layer(input_v)
+            if siam_rois is None:
+                siam_rois, siam_bbox_pred, siam_cls_prob, loss_cls, loss_box = None, None, None, 0, 0
+                return siam_rois, siam_bbox_pred, siam_cls_prob, det_rois, det_rois_label, det_cls_prob, det_bbox_pred
             siam_rois = Variable(siam_rois)
             siam_scores = Variable(siam_scores)
             # NMS for siam rois.
@@ -197,6 +200,16 @@ class _siameseRCNN(nn.Module):
         mult_scores[:, 1:] = mult_scores[:, 1:]*track_cls_probs[:,1:]/sum_prob
         mult_scores[:, 0] = 1.0-mult_scores[:, 0]
 
+        #method 1
+        '''
+        tra_det_cls_probs[:, 0] = 1
+        tra_det_cls_probs = torch.pow(tra_det_cls_probs, cfg.SIAMESE.DET_WEIGHT)
+        merged_probs = mult_scores*tra_det_cls_probs
+        # normalize
+        sum_prob = merged_probs[:, 1:].sum(dim=1, keepdim=True) + 1e-5
+        merged_probs[:, 1:] = merged_probs[:, 1:] / sum_prob
+        '''
+        #method 2
         merged_probs = mult_scores+tra_det_cls_probs*cfg.SIAMESE.DET_WEIGHT
         sum_merged_probs = merged_probs.sum(dim=1, keepdim=True)+1e-5
         merged_probs = merged_probs/sum_merged_probs
