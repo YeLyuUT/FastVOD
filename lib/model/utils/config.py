@@ -217,6 +217,7 @@ __C.TEST.MODE = 'nms'
 __C.TEST.RPN_TOP_N = 5000
 # RPN threshold
 __C.TEST.RPN_SCORE_THRESH = 0.0
+__C.TEST.SIAM_RPN_SCORE_THRESH = 0.0
 #
 # ResNet options
 #

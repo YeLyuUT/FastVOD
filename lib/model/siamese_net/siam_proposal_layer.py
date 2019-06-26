@@ -122,7 +122,8 @@ class _SiamProposalLayer(nn.Module):
         
         scores_keep = scores
         proposals_keep = proposals
-        _, order = torch.sort(scores_keep, 1, True)
+        if self.training is True:
+            _, order = torch.sort(scores_keep, 1, True)
 
         output = scores.new(batch_size, post_nms_topN, 5).zero_()
         output_score = scores.new(batch_size, post_nms_topN, 2).zero_()
@@ -134,8 +135,19 @@ class _SiamProposalLayer(nn.Module):
 
             # # 4. sort all (proposal, score) pairs by score from highest to lowest
             # # 5. take top pre_nms_topN (e.g. 6000)
-            order_single = order[i]
-
+            if self.training is True:
+                order_single = order[i]
+            else:
+                # 0.5 used to filter
+                thr = cfg.TEST.SIAM_RPN_SCORE_THRESH
+                nonzeros = torch.nonzero(scores_single>=thr)
+                if len(nonzeros)>0:
+                    keep = nonzeros[0]
+                    proposals_single = proposals_single[keep]
+                    scores_single = scores_single[keep]
+                    _, order_single = torch.sort(scores_single, 0, True)
+                else:
+                    return None,None
             if pre_nms_topN > 0 and pre_nms_topN < scores_keep.numel():
                 order_single = order_single[:pre_nms_topN]
 

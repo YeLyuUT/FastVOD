@@ -355,7 +355,7 @@ if __name__ == '__main__':
               pred_boxes /= data[1][0][2].item()
               scores = scores.squeeze()
               pred_boxes = pred_boxes.squeeze()
-          if siam_bbox_pred is not None:
+          if siam_rois is not None and siam_bbox_pred is not None:
               siam_scores = siam_cls_prob.data
               siam_boxes = siam_rois.data[:, 1:5]
               pred_siam_bbox = bbox_delta_to_pred_boxes(im_info, siam_boxes.unsqueeze(0), siam_bbox_pred.unsqueeze(0))
