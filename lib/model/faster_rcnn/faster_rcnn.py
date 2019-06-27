@@ -86,8 +86,9 @@ class _fasterRCNN(resnet):
             # The input channel is set mannually since we use resnet101 only.
             # c_out is set to 10*ps*ps. c_mid is set to 256.
             self.relu = nn.ReLU()
-            core_depth = 10
-            self.g_ctx = _global_context_layer(2048, core_depth * cfg.POOLING_SIZE * cfg.POOLING_SIZE, 256, 15)
+            core_depth = cfg.RESNET.GLOBAL_CONTEXT_OUT_DEPTH
+            ctx_size = cfg.RESNET.GLOBAL_CONTEXT_RANGE
+            self.g_ctx = _global_context_layer(2048, core_depth * cfg.POOLING_SIZE * cfg.POOLING_SIZE, 256, ctx_size)
             self.RCNN_psroi_pool = PSRoIPool(cfg.POOLING_SIZE, cfg.POOLING_SIZE, 1.0 / 16.0, cfg.POOLING_SIZE, core_depth)
             # fc layer for roi-wise prediction.
             # roi_mid_c in the original paper is 2048.

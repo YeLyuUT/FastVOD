@@ -244,6 +244,9 @@ __C.RESNET.CORE_CHOICE.FASTER_RCNN = 'faster_rcnn'
 __C.RESNET.CORE_CHOICE.RFCN = 'rfcn'
 # Set the used value here.
 __C.RESNET.CORE_CHOICE.USE = __C.RESNET.CORE_CHOICE.FASTER_RCNN
+__C.RESNET.GLOBAL_CONTEXT_RANGE = 3 #default 15, that is 15x15
+__C.RESNET.GLOBAL_CONTEXT_OUT_DEPTH = 80 #default 10
+
 #
 # MobileNet options
 #
