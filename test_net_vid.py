@@ -436,6 +436,28 @@ if __name__ == '__main__':
                   keep = np.where(all_boxes[j][i][:, -1] >= image_thresh)[0]
                   all_boxes[j][i] = all_boxes[j][i][keep, :]
                   all_boxes_scores[j][i] = all_boxes_scores[j][i][keep, :]
+
+      # nms between classes.
+      if cfg.TEST.NMS_CROSS_CLASS > 0.:
+          cls_boxes = [[]] + [all_boxes[j][i] for j in range(1, imdb.num_classes)]
+          cls_boxes_scores = [[]] + [all_boxes_scores[j][i] for j in range(1, imdb.num_classes)]
+          cls_box_list = [cls_boxes[j] for j in range(1, imdb.num_classes) if len(cls_boxes[j]) > 0]
+          if len(cls_box_list) > 0:
+              all_dets = np.vstack(cls_box_list)
+              all_dets_scores = np.vstack([cls_boxes_scores[j] for j in range(1, imdb.num_classes) if len(cls_boxes[j]) > 0])
+              class_ids = np.vstack([np.ones(shape=(len(cls_boxes[j]), 1)) * j for j in range(1, imdb.num_classes) if len(cls_boxes[j]) > 0])
+              _inds = np.argsort(-all_dets[:, -1])
+              all_dets = all_dets[_inds, :]
+              all_dets_scores = all_dets_scores[_inds, :]
+              class_ids = class_ids[_inds, :]
+              keep = nms(torch.tensor(all_dets.astype(np.float32)).cuda(), cfg.TEST.NMS_CROSS_CLASS).view(-1).long().cpu().numpy()
+              all_dets = all_dets[keep, :]
+              all_dets_scores = all_dets_scores[keep, :]
+              class_ids = class_ids[keep, :]
+              for j in range(1, imdb.num_classes):
+                  idx_j = np.where(class_ids == j)[0]
+                  all_boxes[j][i] = all_dets[idx_j, :]
+                  all_boxes_scores[j][i] = all_dets_scores[idx_j, :]
       ########
       # Get weights for the next iteration.
       ########
