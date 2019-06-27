@@ -203,7 +203,7 @@ class _fasterRCNN(resnet):
                 RCNN_loss_cls_tmp = F.cross_entropy(cls_score, rois_label, reduce=False)
                 RCNN_loss_bbox_tmp = _smooth_l1_loss(bbox_pred, rois_target, rois_inside_ws, rois_outside_ws, reduce=False)
                 #assert RCNN_loss_cls_tmp.size()==RCNN_loss_bbox_tmp.size(), 'size not equal.{}!={}'.format(RCNN_loss_cls_tmp.size(),RCNN_loss_bbox_tmp.size())
-                RCNN_loss_tmp = RCNN_loss_cls_tmp + RCNN_loss_bbox_tmp
+                RCNN_loss_tmp = RCNN_loss_cls_tmp# + RCNN_loss_bbox_tmp
                 sorted_RCNN_loss_tmp, index = torch.sort(RCNN_loss_tmp, descending=True)
 
                 # TODO add nms here.
