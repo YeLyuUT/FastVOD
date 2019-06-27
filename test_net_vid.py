@@ -352,6 +352,15 @@ if __name__ == '__main__':
               scores = cls_prob.data
               boxes = rois.data[:, :, 1:5]
               pred_boxes = bbox_delta_to_pred_boxes(im_info, boxes, bbox_pred)
+
+              # To get score after box pred.
+              pred_rois = pred_boxes[:, 4:].view(-1, 4)
+              pred_rois = torch.cat((pred_boxes.new_zeros(pred_rois.size(0), 1), pred_rois), dim=1).unsqueeze(0)
+              bbox_pred, cls_prob, cls_score = RCNN.RCNN.base_feat_to_roi_pred(RCNN.RCNN.base_feat_for_roi, pred_rois, None)
+              boxes = pred_rois.data[:, :, 1:5]
+              pred_boxes = bbox_delta_to_pred_boxes(im_info, boxes, bbox_pred)
+              scores = cls_prob.data
+
               pred_boxes /= data[1][0][2].item()
               scores = scores.squeeze()
               pred_boxes = pred_boxes.squeeze()
