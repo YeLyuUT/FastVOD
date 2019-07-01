@@ -89,6 +89,12 @@ def parse_args():
   parser.add_argument('--checkpoint', dest='checkpoint',
                       help='checkpoint to load network',
                       default=10021, type=int)
+  parser.add_argument('--ckpt', dest='ckpt',
+                      help='checkpoint to load model',
+                      default='', type=str)
+  parser.add_argument('--det_suffix', dest='det_suffix',
+                      help='suffix for save det name',
+                      default='', type=str)
   parser.add_argument('--vis', dest='vis',
                       help='visualization mode',
                       action='store_true')
@@ -166,8 +172,8 @@ if __name__ == '__main__':
   load_name_predix = cfg.RESNET.CORE_CHOICE.USE
   if cfg.TRAIN.OHEM is True:
       load_name_predix = load_name_predix+'_OHEM'
-  load_name = os.path.join(input_dir,
-    load_name_predix+'_{}_{}_{}.pth'.format(args.checksession, args.checkepoch, args.checkpoint))
+  #load_name = os.path.join(input_dir, load_name_predix+'_{}_{}_{}.pth'.format(args.checksession, args.checkepoch, args.checkpoint))
+  load_name = os.path.join(input_dir, load_name_predix + '_{}.pth'.format(args.ckpt))
 
   # initilize the network here.
   if args.net == 'res101':
@@ -241,8 +247,8 @@ if __name__ == '__main__':
   data_iter = iter(dataloader)
 
   _t = {'im_detect': time.time(), 'misc': time.time()}
-  det_file = os.path.join(output_dir, 'detections.pkl')
-
+  #det_file = os.path.join(output_dir, 'detections.pkl')
+  det_file = os.path.join(output_dir, 'detections' + args.det_suffix + '.pkl')
   RCNN.eval()
   empty_array = np.transpose(np.array([[],[],[],[],[]]), (1,0))
   for i in range(num_images):
@@ -258,63 +264,65 @@ if __name__ == '__main__':
       rpn_loss_cls, rpn_loss_box, \
       RCNN_loss_cls, RCNN_loss_bbox, \
       rois_label = RCNN(im_data, im_info, gt_boxes, num_boxes)
+      if rois is not None:
+          scores = cls_prob.data
+          boxes = rois.data[:, :, 1:5]
 
-      scores = cls_prob.data
-      boxes = rois.data[:, :, 1:5]
+          if cfg.TEST.BBOX_REG:
+              # Apply bounding-box regression deltas
+              box_deltas = bbox_pred.data
+              if cfg.TRAIN.BBOX_NORMALIZE_TARGETS_PRECOMPUTED:
+              # Optionally normalize targets by a precomputed mean and stdev
+                if args.class_agnostic:
+                    box_deltas = box_deltas.view(-1, 4) * torch.FloatTensor(cfg.TRAIN.BBOX_NORMALIZE_STDS).cuda() \
+                               + torch.FloatTensor(cfg.TRAIN.BBOX_NORMALIZE_MEANS).cuda()
+                    box_deltas = box_deltas.view(1, -1, 4)
+                else:
+                    box_deltas = box_deltas.view(-1, 4) * torch.FloatTensor(cfg.TRAIN.BBOX_NORMALIZE_STDS).cuda() \
+                               + torch.FloatTensor(cfg.TRAIN.BBOX_NORMALIZE_MEANS).cuda()
+                    box_deltas = box_deltas.view(1, -1, 4 * len(imdb.classes))
 
-      if cfg.TEST.BBOX_REG:
-          # Apply bounding-box regression deltas
-          box_deltas = bbox_pred.data
-          if cfg.TRAIN.BBOX_NORMALIZE_TARGETS_PRECOMPUTED:
-          # Optionally normalize targets by a precomputed mean and stdev
-            if args.class_agnostic:
-                box_deltas = box_deltas.view(-1, 4) * torch.FloatTensor(cfg.TRAIN.BBOX_NORMALIZE_STDS).cuda() \
-                           + torch.FloatTensor(cfg.TRAIN.BBOX_NORMALIZE_MEANS).cuda()
-                box_deltas = box_deltas.view(1, -1, 4)
-            else:
-                box_deltas = box_deltas.view(-1, 4) * torch.FloatTensor(cfg.TRAIN.BBOX_NORMALIZE_STDS).cuda() \
-                           + torch.FloatTensor(cfg.TRAIN.BBOX_NORMALIZE_MEANS).cuda()
-                box_deltas = box_deltas.view(1, -1, 4 * len(imdb.classes))
-
-          pred_boxes = bbox_transform_inv(boxes, box_deltas, 1)
-          pred_boxes = clip_boxes(pred_boxes, im_info.data, 1)
-      else:
-          # Simply repeat the boxes, once for each class
-          _ = torch.from_numpy(np.tile(boxes, (1, scores.shape[1])))
-          pred_boxes = _.cuda() if args.cuda > 0 else _
-
-      pred_boxes /= data[1][0][2].item()
-
-      scores = scores.squeeze()
-      pred_boxes = pred_boxes.squeeze()
-      det_toc = time.time()
-      detect_time = det_toc - det_tic
-      misc_tic = time.time()
-      if vis:
-          im = cv2.imread(imdb.image_path_at(i))
-          im2show = np.copy(im)
-      for j in xrange(1, imdb.num_classes):
-          inds = torch.nonzero(scores[:,j]>thresh).view(-1)
-          # if there is det
-          if inds.numel() > 0:
-            cls_scores = scores[:,j][inds]
-            _, order = torch.sort(cls_scores, 0, True)
-            if args.class_agnostic:
-              cls_boxes = pred_boxes[inds, :]
-            else:
-              cls_boxes = pred_boxes[inds][:, j * 4:(j + 1) * 4]
-            
-            cls_dets = torch.cat((cls_boxes, cls_scores.unsqueeze(1)), 1)
-            # cls_dets = torch.cat((cls_boxes, cls_scores), 1)
-            cls_dets = cls_dets[order]
-            keep = nms(cls_dets, cfg.TEST.NMS)
-            cls_dets = cls_dets[keep.view(-1).long()]
-            if vis:
-              im2show = vis_detections(im2show, imdb.classes[j], cls_dets.cpu().numpy(), 0.3)
-            all_boxes[j][i] = cls_dets.cpu().numpy()
+              pred_boxes = bbox_transform_inv(boxes, box_deltas, 1)
+              pred_boxes = clip_boxes(pred_boxes, im_info.data, 1)
           else:
-            all_boxes[j][i] = empty_array
+              # Simply repeat the boxes, once for each class
+              _ = torch.from_numpy(np.tile(boxes, (1, scores.shape[1])))
+              pred_boxes = _.cuda() if args.cuda > 0 else _
 
+          pred_boxes /= data[1][0][2].item()
+
+          scores = scores.squeeze()
+          pred_boxes = pred_boxes.squeeze()
+          det_toc = time.time()
+          detect_time = det_toc - det_tic
+          misc_tic = time.time()
+          if vis:
+              im = cv2.imread(imdb.image_path_at(i))
+              im2show = np.copy(im)
+          for j in xrange(1, imdb.num_classes):
+              inds = torch.nonzero(scores[:,j]>thresh).view(-1)
+              # if there is det
+              if inds.numel() > 0:
+                cls_scores = scores[:,j][inds]
+                _, order = torch.sort(cls_scores, 0, True)
+                if args.class_agnostic:
+                  cls_boxes = pred_boxes[inds, :]
+                else:
+                  cls_boxes = pred_boxes[inds][:, j * 4:(j + 1) * 4]
+
+                cls_dets = torch.cat((cls_boxes, cls_scores.unsqueeze(1)), 1)
+                # cls_dets = torch.cat((cls_boxes, cls_scores), 1)
+                cls_dets = cls_dets[order]
+                keep = nms(cls_dets, cfg.TEST.NMS)
+                cls_dets = cls_dets[keep.view(-1).long()]
+                if vis:
+                  im2show = vis_detections(im2show, imdb.classes[j], cls_dets.cpu().numpy(), 0.3)
+                all_boxes[j][i] = cls_dets.cpu().numpy()
+              else:
+                all_boxes[j][i] = empty_array
+      else:
+          for j in xrange(1, imdb.num_classes):
+              all_boxes[j][i] = empty_array
       # Limit to max_per_image detections *over all classes*
       if max_per_image > 0:
           image_scores = np.hstack([all_boxes[j][i][:, -1]
