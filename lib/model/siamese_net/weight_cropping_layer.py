@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.autograd import Variable
 from model.utils.config import cfg
 from model.roi_align.modules.roi_align import RoIAlign
 from model.roi_crop.modules.roi_crop import _RoICrop

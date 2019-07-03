@@ -2,9 +2,7 @@ import random
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.autograd import Variable
 import torchvision.models as models
-from torch.autograd import Variable
 import numpy as np
 from model.faster_rcnn.resnet import resnet
 from model.utils.config import cfg
@@ -182,7 +180,6 @@ class _fasterRCNN(resnet):
             if rois is None:
                 return None, None, None, None, None, None, None, None
 
-        rois = Variable(rois)
 
         # The original implementation puts c5 to R-CNN.
         if not cfg.RESNET.CORE_CHOICE.USE == cfg.RESNET.CORE_CHOICE.FASTER_RCNN:
@@ -292,7 +289,7 @@ class _fasterRCNN(resnet):
                 # pooled_feat_anchor = _crop_pool_layer(base_feat, rois.view(-1, 5))
                 grid_xy = _affine_grid_gen(rois.view(-1, 5), base_feat.size()[2:], self.grid_size)
                 grid_yx = torch.stack([grid_xy.data[:,:,:,1], grid_xy.data[:,:,:,0]], 3).contiguous()
-                pooled_feat = self.RCNN_roi_crop(base_feat, Variable(grid_yx).detach())
+                pooled_feat = self.RCNN_roi_crop(base_feat, grid_yx.detach())
                 if cfg.CROP_RESIZE_WITH_MAX_POOL:
                     pooled_feat = F.max_pool2d(pooled_feat, 2, 2)
             elif cfg.POOLING_MODE == 'align':
@@ -331,8 +328,8 @@ class _fasterRCNN(resnet):
         roi_data = self.RCNN_proposal_target(rois, gt_boxes, num_boxes)
         rois, rois_label, rois_target, rois_inside_ws, rois_outside_ws = roi_data
 
-        rois_label = Variable(rois_label.view(-1).long())
-        rois_target = Variable(rois_target.view(-1, rois_target.size(2)))
-        rois_inside_ws = Variable(rois_inside_ws.view(-1, rois_inside_ws.size(2)))
-        rois_outside_ws = Variable(rois_outside_ws.view(-1, rois_outside_ws.size(2)))
+        rois_label = rois_label.view(-1).long()
+        rois_target = rois_target.view(-1, rois_target.size(2))
+        rois_inside_ws = rois_inside_ws.view(-1, rois_inside_ws.size(2))
+        rois_outside_ws = rois_outside_ws.view(-1, rois_outside_ws.size(2))
         return rois, rois_label, rois_target, rois_inside_ws, rois_outside_ws

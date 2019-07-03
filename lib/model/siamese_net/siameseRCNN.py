@@ -1,14 +1,12 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.autograd import Variable
 from model.faster_rcnn.faster_rcnn import _fasterRCNN
 from model.siamese_net.template_target_proposal_layer import _TemplateTargetProposalLayer
 #from model.siamese_net.siameseRPN import siameseRPN
 from model.siamese_net.siameseRPN_one_branch import siameseRPN_one_branch as siameseRPN
 from model.utils.config import cfg
 from model.siamese_net.nms_tracking import trNMS
-from torch.autograd import Variable
 from model.dcn.modules.deform_conv import DeformConv
 from random import shuffle
 from model.utils.net_utils import _smooth_l1_loss
@@ -151,8 +149,7 @@ class _siameseRCNN(nn.Module):
             if siam_rois is None:
                 siam_rois, siam_bbox_pred, siam_cls_prob, loss_cls, loss_box = None, None, None, 0, 0
                 return siam_rois, siam_bbox_pred, siam_cls_prob, det_rois, det_rois_label, det_cls_prob, det_bbox_pred
-            siam_rois = Variable(siam_rois)
-            siam_scores = Variable(siam_scores)
+
             # NMS for siam rois.
             # TODO rois_tracking should be sliced.
             #print('siam_rois:',siam_rois)
@@ -285,7 +282,6 @@ class _siameseRCNN(nn.Module):
             tra_rois, tra_rois_label, tra_rois_target, tra_rois_inside_ws, tra_rois_outside_ws = self.RCNN.prepare_rois_for_training(
                 rois, target_gt_boxes.view(1, -1, 6)[:,:,:5], target_gt_boxes.size(0))
 
-            tra_rois = Variable(tra_rois)
             tra_bbox_pred, tra_cls_prob, tra_cls_score = \
                 self.RCNN.base_feat_to_roi_pred(self.RCNN.base_feat_for_roi[batch_id:batch_id+1], tra_rois, tra_rois_label)
             tra_RCNN_loss_cls = F.cross_entropy(tra_cls_score, tra_rois_label)

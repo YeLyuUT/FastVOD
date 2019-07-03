@@ -132,9 +132,9 @@ class _ProposalTargetLayer(nn.Module):
 
         labels = gt_boxes[:,:,4].contiguous().view(-1)[(offset.view(-1),)].view(batch_size, -1)
         
-        labels_batch = labels.new(batch_size, rois_per_image).zero_()
-        rois_batch = all_rois.new(batch_size, rois_per_image, 5).zero_()
-        gt_rois_batch = all_rois.new(batch_size, rois_per_image, 5).zero_()
+        labels_batch = labels.new_zeros(batch_size, rois_per_image)
+        rois_batch = all_rois.new_zeros(batch_size, rois_per_image, 5)
+        gt_rois_batch = all_rois.new_zeros(batch_size, rois_per_image, 5)
         # Guard against the case when an image has fewer than max_fg_rois_per_image
         # foreground RoIs
         for i in range(batch_size):

@@ -1,9 +1,9 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.autograd import Variable
 import numpy as np
 import torchvision.models as models
+from torch.autograd import Variable
 from model.utils.config import cfg
 from model.roi_crop.functions.roi_crop import RoICropFunction
 import cv2
@@ -116,7 +116,7 @@ def _crop_pool_layer(bottom, rois, max_pool=True):
     width = bottom.size(3)
 
     # affine theta
-    zero = Variable(rois.data.new(rois.size(0), 1).zero_())
+    zero = rois.data.new(rois.size(0), 1).zero_()
     theta = torch.cat([\
       (x2 - x1) / (width - 1),
       zero,
@@ -151,7 +151,7 @@ def _affine_grid_gen(rois, input_size, grid_size):
     height = input_size[0]
     width = input_size[1]
 
-    zero = Variable(rois.data.new(rois.size(0), 1).zero_())
+    zero = rois.data.new(rois.size(0), 1).zero_()
     theta = torch.cat([\
       (x2 - x1) / (width - 1),
       zero,
@@ -175,7 +175,7 @@ def _affine_theta(rois, input_size):
     height = input_size[0]
     width = input_size[1]
 
-    zero = Variable(rois.data.new(rois.size(0), 1).zero_())
+    zero = rois.data.new(rois.size(0), 1).zero_()
 
     # theta = torch.cat([\
     #   (x2 - x1) / (width - 1),
