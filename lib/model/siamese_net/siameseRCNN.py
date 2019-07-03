@@ -201,18 +201,17 @@ class _siameseRCNN(nn.Module):
         mult_scores[:, 0] = 1.0-mult_scores[:, 0]
 
         #method 1
-        '''
-        tra_det_cls_probs[:, 0] = 1
         tra_det_cls_probs = torch.pow(tra_det_cls_probs, cfg.SIAMESE.DET_WEIGHT)
         merged_probs = mult_scores*tra_det_cls_probs
         # normalize
-        sum_prob = merged_probs[:, 1:].sum(dim=1, keepdim=True) + 1e-5
-        merged_probs[:, 1:] = merged_probs[:, 1:] / sum_prob
-        '''
+        sum_merged_probs = merged_probs.sum(dim=1, keepdim=True) + 1e-5
+        merged_probs = merged_probs / sum_merged_probs
         #method 2
+        '''
         merged_probs = mult_scores+tra_det_cls_probs*cfg.SIAMESE.DET_WEIGHT
         sum_merged_probs = merged_probs.sum(dim=1, keepdim=True)+1e-5
         merged_probs = merged_probs/sum_merged_probs
+        '''
         return merged_probs
 
     def forward_training(self,im_data_1, im_info_1, num_boxes_1, gt_boxes_1,
@@ -277,9 +276,9 @@ class _siameseRCNN(nn.Module):
                 tracking_losses_cls_ls.append(rpn_loss_cls_siam)
             if rpn_loss_box_siam is not None:
                 tracking_losses_box_ls.append(rpn_loss_box_siam)
-            ###########################
-            #    Tracking roi loss    #
-            ###########################
+            ############################
+            #    Tracking rcnn loss    #
+            ############################
             rois = rois.view(1, -1, 5)
             # One batch a time.
             rois.data[:, :, 0] = 0

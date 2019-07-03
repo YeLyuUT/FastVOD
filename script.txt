@@ -1,0 +1,12 @@
+# for det dataset
+CUDA_VISIBLE_DEVICES=0,1,2,3 python trainval_net.py --dataset imagenetDETVID --net res101 --bs 16 --nw 8 --lr 0.001 --epochs 10 --cuda --mGPUs --cfg cfgs/res101_lighthead.yml
+
+# for vid dataset 1 gpu.
+CUDA_VISIBLE_DEVICES=0 python trainval_net_vid.py --dataset imagenetVID --net res101 --bs 3 --nw 2 --lr 0.001 --epochs 2 --cuda --mGPUs --cfg cfgs/res101_lighthead.yml --ckpt_det 1_8_27452
+
+python test_net.py --dataset imagenet --net res101 \
+                   --checksession $SESSION --checkepoch $EPOCH --checkpoint $CHECKPOINT \
+                   --cuda
+                   
+# for super compute server.
+srun -A gsxia -p gpu --gres=gpu:4 python trainval_net.py --dataset imagenetDETVID --net res101 --bs 16 --nw 8 --lr 0.001 --epochs 10 --cuda --mGPUs --cfg cfgs/res101_lighthead.yml --lr_decay_step 4
