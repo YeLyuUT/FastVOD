@@ -91,7 +91,7 @@ SIAMESE:
   USE_SEPARABLE_CORRELATION: False
 
   # Detach the siam training features or not.
-  DETACH_FEAT_FOR_TRACK: False
+  DETACH_FEAT_FOR_TRACK: True
   DETACH_CONV1234: False
   NO_RPN_TRAINING: False
   NO_RCNN_TRAINING: False
