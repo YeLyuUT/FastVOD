@@ -463,7 +463,7 @@ if __name__ == '__main__':
       loss = 0
       if not cfg.SIAMESE.NO_RPN_TRAINING:
           loss += rpn_loss_cls.mean() + rpn_loss_box.mean()
-      if cfg.SIAMESE.NO_RCNN_TRAINING:
+      if not cfg.SIAMESE.NO_RCNN_TRAINING:
           loss += RCNN_loss_cls.mean() + RCNN_loss_bbox.mean()
       if siamRPN_loss_cls is not None and siamRPN_loss_box is not None:
           loss += siamRPN_loss_cls.mean() + siamRPN_loss_box.mean()
